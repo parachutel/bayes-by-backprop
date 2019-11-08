@@ -1,143 +1,18 @@
 import torch.nn as nn
 import torch
 import math
-from torch.autograd import Variable
+from codebase.models.nn.BBBLayer import BBBLayer
 from torch.nn.utils.rnn import PackedSequence
-
-from codebase import utils as ut
-
-class BBBLayer(nn.Module):
-    """
-    a base class for all BBB layer with gaussian mixture prior
-    """
-    def __init__(self, pi, std1, std2, gpu, BBB):
-        super(BBBLayer, self).__init__()
-        self.pi = pi
-        self.std1 = std1
-        self.std2 = std2
-        self.gpu = gpu
-        self.BBB = BBB
-
-        self.sampled_weights = []
-        self.sampled_sharpen_weights = []
-        self.means = []
-        self.logvars = []
-        self.h_post_means = []
-
-    def sample(self):
-        assert self.BBB is True
-
-        self.sampled_weights = [] # clear samples
-        for i in range(len(self.means)):
-            mean = self.means[i]
-            logvar = self.logvars[i]
-            eps = torch.zeros(mean.size())
-            if self.gpu:
-                eps = eps.cuda()
-
-            eps.normal_()
-            std = logvar.mul(0.5).exp()
-            weight = mean + Variable(eps) * std
-            self.sampled_weights.append(weight)
-
-    def resample_with_sharpening(self, grads, eta, std=0.02):
-        self.sampled_sharpen_weights = []
-        self.h_post_means = []
-        for i in range(len(self.sampled_weights)):
-            w = self.sampled_weights[i]
-            # Random number
-            eps = torch.zeros(w.size())
-            if self.gpu:
-                eps = eps.cuda()
-
-            eps.normal_()
-            g = grads[i].detach()
-            # Sample fron normal wih posterior sharpening
-            h_post_means = (w - eta[i] * g)
-            weight = h_post_means + Variable(eps) * std
-            self.h_post_means.append(h_post_means)
-            self.sampled_sharpen_weights.append(weight)
-
-    def get_kl_sharpening(self, sigma=0.02):
-        kl = 0
-        for i in range(len(self.sampled_weights)):
-            sharp_w = self.sampled_sharpen_weights[i]
-            w = self.sampled_weights[i].detach()
-
-            # without constant term
-            kl += torch.sum((sharp_w - w).pow(2) / (2*sigma**2))
-
-        return kl
-
-    def get_kl(self):
-        """
-        Use the current sampled weights to calculate the KL divergence 
-        from posterior to prior.
-        :return: The KL
-        """
-        assert len(self.sampled_weights) != 0 # make sure we sample weights
-
-        log_posterior = ut.mul_var_normal(
-            weights=self.sampled_weights,
-            means=[ mean.detach() for mean in self.means],
-            logvars=[ logvar.detach() for logvar in self.logvars]
-        )
-        log_prior = ut.log_scale_gaussian_mix_prior(self.sampled_weights, 
-            pi=self.pi, std1=self.std1, std2=self.std2)
-        kl = log_posterior - log_prior
-        return kl
-
-class BBBLinear(BBBLayer):
-    """
-    adapted from torch.nn.Linear
-    with Gaussian mixture as prior
-    """
-    def __init__(self, in_features, out_features, *args, **kwargs):
-        super(BBBLinear, self).__init__(*args, **kwargs)
-
-        self.in_features = in_features
-        self.out_features = out_features
-        self.weight_mean = nn.Parameter(torch.Tensor(out_features, in_features))
-        self.bias_mean = nn.Parameter(torch.Tensor(out_features))
-        if self.BBB is True:
-            self.weight_logvar = nn.Parameter(torch.Tensor(out_features, in_features))
-            self.bias_logvar = nn.Parameter(torch.Tensor(out_features))
-
-        # used for KL
-        self.means = [self.weight_mean, self.bias_mean]
-        if self.BBB is True:
-            self.logvars = [self.weight_logvar, self.bias_logvar]
-
-        self.reset_parameters()
-
-
-    def reset_parameters(self):
-        stdv = 1. / math.sqrt(self.weight_mean.size(1))
-        logvar_init = math.log(stdv) * 2
-        for mean in self.means:
-            mean.data.uniform_(-stdv, stdv)
-        if self.BBB is True:
-            for logvar in self.logvars:
-                logvar.data.fill_(logvar_init)
-
-    def forward(self, inputs):
-        if self.training and self.BBB is True:
-            # if use BBB and it is training
-            self.sample()
-            weight = self.sampled_weights[0]
-            bias = self.sampled_weights[1]
-        else:
-            # use only mean for testing or non BBB
-            weight = self.weight_mean
-            bias = self.bias_mean
-        return nn.functional.linear(inputs, weight, bias)
-
 
 class BBBRNN(BBBLayer):
 
     def __init__(self, mode, sharpen, input_size, hidden_size,
-                 num_layers=1, batch_first=False,
-                 dropout=0, bidirectional=False, *args, **kwargs):
+                 num_layers=1, 
+                 batch_first=False,
+                 dropout=0, 
+                 bidirectional=False, 
+                 *args, **kwargs):
+
         super(BBBRNN, self).__init__(*args, **kwargs)
         self.mode = mode
         self.input_size = input_size
@@ -164,7 +39,7 @@ class BBBRNN(BBBLayer):
         for layer in range(num_layers):
             for direction in range(num_directions):
                 layer_input_size = input_size if layer == 0 \
-                    else hidden_size * num_directions
+                                    else hidden_size * num_directions
 
                 w_ih_mean = nn.Parameter(torch.Tensor(gate_size, layer_input_size))
                 w_hh_mean = nn.Parameter(torch.Tensor(gate_size, hidden_size))
