@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader
 
 import codebase.utils as ut
 
-import time
+import os
 import numpy as np
 import tqdm
 import matplotlib.pyplot as plt
@@ -51,8 +51,6 @@ class TimeSeriesPredModel(nn.Module):
             assert len(x) == self.n_input_steps
             # Zero-padding the time-steps to 
             x = self.pad_input_sequence(x)
-            # h0 = Variable(torch.zeros(self.layerNum * 1, batchSize, self.hiddenNum))
-            # c0 = Variable(torch.zeros(self.layerNum * 1, batchSize, self.hiddenNum))
             encoded_output, hidden = self.rnn(x)
             output = self.decoder(encoded_output)
         return output
@@ -75,9 +73,14 @@ class TimeSeriesPredModel(nn.Module):
         
 
 
-def train(model, data, device, tqdm,
+def train(model, data, device, tqdm, kernel,
           iter_max=np.inf, iter_save=np.inf, iter_plot=np.inf, 
-          model_name='model', reinitialize=False):
+          reinitialize=False):
+    
+    log_path = './test_results/{}'.format(model.name)
+    if not os.path.exists(log_path):
+        os.makedirs(log_path)
+
     # Optimization
     if reinitialize:
         model.apply(ut.reset_weights)
@@ -105,33 +108,28 @@ def train(model, data, device, tqdm,
                     ut.save_model_by_name(model, i)
 
                 if i % iter_plot == 0:
-                    test_plot_sin(model, i)
+                    test_plot(model, i, kernel)
                     plot_log_loss(model, loss_list, i)
 
                 if i == iter_max:
                     return
 
-def sinusoidal_function(t):
-    return 2 * np.sin(t) * np.cos(4 * t) + (t - t[0])
-
 def time_grid(start, sequence_len):
     return np.linspace(start, start + 20, sequence_len)
 
-def dummy_data_creator(batch_size, n_batches, n_input_steps, 
-                            n_pred_steps, device):
-    """
-    1-D data generator
-    """
+def dummy_data_creator(batch_size, n_batches, input_feat_dim, 
+                        n_input_steps, n_pred_steps, kernel, device):
+
     with torch.no_grad():
         data = []
-        input_size = 1
         sequence_len = n_input_steps + n_pred_steps
         for i in range(n_batches):
-            batch = torch.zeros((sequence_len, batch_size, input_size), device=device)
+            batch = torch.zeros((sequence_len, batch_size, input_feat_dim), device=device)
+            # Vectorize?
             for batch_item_idx in range(batch_size):
                 start = np.random.randint(100000)
                 t = time_grid(start, sequence_len)
-                x = sinusoidal_function(t).reshape(sequence_len, -1)
+                x = kernel(t, input_feat_dim).reshape(sequence_len, -1)
                 batch[:, batch_item_idx, :] = \
                     torch.tensor(x, device=device, 
                         dtype=batch.dtype, requires_grad=False)
@@ -139,55 +137,68 @@ def dummy_data_creator(batch_size, n_batches, n_input_steps,
         print('dummy data loaded!')
     return data
 
-def test_plot_sin(model, iter):
-    """
-    1-D data plotter
-    """
+def test_plot(model, iter, kernel):
     with torch.no_grad():
         sequence_len = model.n_input_steps + model.n_pred_steps
         start = np.random.randint(1000)
         t = time_grid(start, sequence_len)
         # batch_size = 1
-        given_seq = torch.tensor(sinusoidal_function(t), device=model.device, 
+        given_seq = torch.tensor(kernel(t, model.input_feat_dim), device=model.device, 
             dtype=torch.float32, requires_grad=False).reshape(sequence_len, 1, -1)
         pred_seq = model.forward(given_seq[:model.n_input_steps, :, :])
         pred_seq = pred_seq[model.n_input_steps:, :, :]
 
         plt.figure()
-        plt.plot(t, given_seq[:, 0, 0].numpy(), label='Ground Truth')
-        plt.plot(t[model.n_input_steps:], pred_seq[:, 0, 0].numpy(), 
-            label='Prediction')
-        # plt.show()
-        plt.xlabel('t')
-        plt.ylabel('x')
+        if model.input_feat_dim == 1:
+            plt.plot(t, given_seq[:, 0, 0].numpy(), label='Ground Truth')
+            plt.plot(t[model.n_input_steps:], pred_seq[:, 0, 0].numpy(), 
+                label='Prediction')
+            plt.xlabel('t')
+            plt.ylabel('x')
+        elif model.input_feat_dim == 2:
+            plt.plot(given_seq[:model.n_input_steps, 0, 0].numpy(), 
+                        given_seq[:model.n_input_steps, 0, 1].numpy(), label='Input')
+            plt.plot(given_seq[(model.n_input_steps - 1):, 0, 0].numpy(), 
+                    given_seq[(model.n_input_steps - 1):, 0, 1].numpy(), label='Ground Truth')
+            plt.plot(pred_seq[:, 0, 0].numpy(), pred_seq[:, 0, 1].numpy(), label='Prediction')
+            plt.xlabel('x')
+            plt.ylabel('y')
         plt.title('iter = {}'.format(iter))
         plt.legend()
-        plt.savefig('model={}_iter={}.png'.format(model.name, iter))
+        plt.savefig('./test_results/{}/pred_iter={}.png'.format(model.name, iter))
         plt.clf()
+
 
 def plot_log_loss(model, loss, iter):
     plt.figure()
     plt.plot(np.log(loss))
     plt.xlabel('iter')
     plt.ylabel('log-loss')
-    plt.savefig('loss_model={}.png'.format(model.name))
+    plt.savefig('./test_results/{}/loss.png'.format(model.name))
     plt.clf()
 
+def sinusoidal_kernel(t, input_feat_dim):
+    if input_feat_dim == 1:
+        return np.random.randint(1, 4) * np.sin(t) * np.cos(4 * t) + (t - t[0])
+    elif input_feat_dim == 2:
+        a = [np.random.randint(1, 4) * np.sin(np.random.rand() * 2 * t) + (t - t[0]),
+             np.random.randint(1, 4) * np.cos(np.random.rand() * 2 * t) + (t - t[0])]
+        return np.transpose(np.array(a))
 
 if __name__ == '__main__':
-    model_name = 'test_lstm'
+    model_name = 'test_lstm_2d'
     print('Model name:', model_name)
 
     # Data
     batch_size = 50
-    n_batches = 1000
+    n_batches = 2000
     n_input_steps = 50
     n_pred_steps = 20
-    input_feat_dim=1
+    input_feat_dim=2
     # Network
-    hidden_feat_dim=50
+    hidden_feat_dim=100
     # Train settings
-    iter_max = 30000
+    iter_max = 50000
     iter_save = np.inf
     iter_plot = 1000
 
@@ -196,8 +207,10 @@ if __name__ == '__main__':
     data = dummy_data_creator(
         batch_size=batch_size, 
         n_batches=n_batches, 
+        input_feat_dim=input_feat_dim,
         n_input_steps=n_input_steps, 
         n_pred_steps=n_pred_steps,
+        kernel=sinusoidal_kernel,
         device=device)
 
     model = TimeSeriesPredModel(
@@ -212,6 +225,7 @@ if __name__ == '__main__':
           data=data,
           device=device,
           tqdm=tqdm.tqdm,
+          kernel=sinusoidal_kernel,
           iter_plot=iter_plot,
           iter_max=iter_max,
           iter_save=iter_save)

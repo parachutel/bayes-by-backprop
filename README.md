@@ -8,8 +8,9 @@
 - TODO: figure out needs for data processing
 
 11/08/19
-- figured out working flow of asynced many-to-many prediction
+- figured out working flow of asynchronous many-to-many prediction
 - figured out basic network structure
 - figured out requirements for time-series data
-- tested LSTM with dummy sinusoidal data, worked well
+- tested LSTM with dummy 1d sinusoidal data, worked well
+- testing LSTM with dummy 2d sinusoidal data, wait and see
 - TODO: test dummy sinusoidal data on BBBRNN
