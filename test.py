@@ -4,8 +4,8 @@ import scipy.stats
 
 import codebase.utils as ut
 
-# test ut.log_scale_gaussian_mix_prior
-pi = 0.9
+# Test ut.log_scale_gaussian_mix_prior
+pi = 0.3
 std1 = 1
 std2 = np.e ** (-6)
 
@@ -27,3 +27,28 @@ for w in [w1, w2]:
             log_prob += np.log(pi * p1 + (1 - pi) * p2)
 
 print(log_prob)
+
+
+# Test BBBLinear
+from codebase.models.nns.BBBLinear import BBBLinear
+import torch.nn as nn
+
+test_net = nn.Sequential(
+    BBBLinear(784, 300, 
+        pi=pi, std1=std1,
+        std2=std2, BBB=True,
+        gpu=False),
+    nn.ELU(),
+    BBBLinear(300, 300, 
+        pi=pi, std1=std1,
+        std2=std2, BBB=True,
+        gpu=False),
+    nn.ELU(),
+    BBBLinear(300, 4,
+        pi=pi, std1=std1,
+        std2=std2, BBB=True,
+        gpu=False),
+)
+# Batch x Channel x Height x Width
+test_net_out = test_net(torch.Tensor(np.random.rand(128, 3, 1, 784)))
+print(test_net_out.shape)

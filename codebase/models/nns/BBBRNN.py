@@ -1,7 +1,7 @@
 import torch.nn as nn
 import torch
 import math
-from codebase.models.nn.BBBLayer import BBBLayer
+from codebase.models.nns.BBBLayer import BBBLayer
 from torch.nn.utils.rnn import PackedSequence
 
 class BBBRNN(BBBLayer):
@@ -38,8 +38,8 @@ class BBBRNN(BBBLayer):
         self.eta = []
         for layer in range(num_layers):
             for direction in range(num_directions):
-                layer_input_size = input_size if layer == 0 \
-                                    else hidden_size * num_directions
+                layer_input_size = \
+                    input_size if layer == 0 else hidden_size * num_directions
 
                 w_ih_mean = nn.Parameter(torch.Tensor(gate_size, layer_input_size))
                 w_hh_mean = nn.Parameter(torch.Tensor(gate_size, hidden_size))
@@ -48,11 +48,13 @@ class BBBRNN(BBBLayer):
                 self.means += [w_ih_mean, w_hh_mean, b_ih_mean, b_hh_mean]
 
                 if self.BBB is True:
-                    w_ih_logvar = nn.Parameter(torch.Tensor(gate_size, layer_input_size))
+                    w_ih_logvar = \
+                        nn.Parameter(torch.Tensor(gate_size, layer_input_size))
                     w_hh_logvar = nn.Parameter(torch.Tensor(gate_size, hidden_size))
                     b_ih_logvar = nn.Parameter(torch.Tensor(gate_size))
                     b_hh_logvar = nn.Parameter(torch.Tensor(gate_size))
-                    self.logvars += [w_ih_logvar, w_hh_logvar, b_ih_logvar, b_hh_logvar]
+                    self.logvars += \
+                        [w_ih_logvar, w_hh_logvar, b_ih_logvar, b_hh_logvar]
 
                 # set weight to be attribute
                 if self.BBB is True:
@@ -169,11 +171,12 @@ class BBBRNN(BBBLayer):
 
         if hx is None:
             num_directions = 2 if self.bidirectional else 1
-            hx = torch.autograd.Variable(input.data.new(self.num_layers *
-                                                        num_directions,
-                                                        max_batch_size,
-                                                        self.hidden_size).zero_(), 
-                                        requires_grad=False)
+            hx = torch.autograd.Variable(
+                input.data.new(self.num_layers * num_directions,
+                                max_batch_size,
+                                self.hidden_size).zero_(), 
+                requires_grad=False)
+
             if self.mode == 'LSTM':
                 hx = (hx, hx)
 

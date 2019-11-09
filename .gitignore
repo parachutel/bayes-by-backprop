@@ -10,6 +10,7 @@
 
 *.png
 checkpoints
+test_results
 
 # Setuptools distribution and build folders.
 /dist/

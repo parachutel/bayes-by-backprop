@@ -1,7 +1,11 @@
+import os
+import shutil
+import sys
+
 import torch
 from torch.distributions.normal import Normal
-import math
 
+import math
 import scipy.stats
 import numpy as np
 
@@ -19,7 +23,7 @@ def mul_var_normal(weights, means, logvars):
     for i in range(len(weights)):
         w = weights[i]
         mean = means[i]
-        
+
         if len(logvars) > 1:
             logvar = logvars[i]
             var = logvar.exp()
@@ -77,4 +81,34 @@ def log_scale_gaussian_mix_prior(weights, pi, std1, std2):
 
     return log_prob
 
+def reset_weights(m):
+    try:
+        m.reset_parameters()
+    except AttributeError:
+        pass
 
+def save_model_by_name(model, global_step):
+    save_dir = os.path.join('checkpoints', model.name)
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+    file_path = os.path.join(save_dir, 'model-{:05d}.pt'.format(global_step))
+    state = model.state_dict()
+    torch.save(state, file_path)
+    print('Saved to {}'.format(file_path))
+
+
+def prepare_writer(model_name, overwrite_existing=False):
+    log_dir = os.path.join('logs', model_name)
+    save_dir = os.path.join('checkpoints', model_name)
+    if overwrite_existing:
+        delete_existing(log_dir)
+        delete_existing(save_dir)
+    # Sadly, I've been told *not* to use tensorflow :<
+    # writer = tf.summary.FileWriter(log_dir)
+    writer = None
+    return writer
+
+def delete_existing(path):
+    if os.path.exists(path):
+        print("Deleting existing path: {}".format(path))
+        shutil.rmtree(path)

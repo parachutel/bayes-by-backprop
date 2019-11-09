@@ -1,11 +1,12 @@
 import torch.nn as nn
 import torch
 import math
-from codebase.models.nn.BBBLayer import BBBLayer
+from codebase.models.nns.BBBLayer import BBBLayer
 
 class BBBLinear(BBBLayer):
     """
-    adapted from torch.nn.Linear
+    One feedforward linear layer with BBB (without nonlinearity)
+    Adapted from torch.nn.Linear
     with Gaussian mixture as prior
     """
     def __init__(self, in_features, out_features, *args, **kwargs):
@@ -28,22 +29,29 @@ class BBBLinear(BBBLayer):
 
 
     def reset_parameters(self):
-        stdv = 1. / math.sqrt(self.weight_mean.size(1))
-        logvar_init = math.log(stdv) * 2
+        """
+        Parameter initialization
+        Using simple uniform distribution
+        Consider other methods such as He and Xavier
+        """
+        stdv_init = 1. / math.sqrt(self.weight_mean.size(1))
         for mean in self.means:
-            mean.data.uniform_(-stdv, stdv)
+            mean.data.uniform_(-stdv_init, stdv_init)
         if self.BBB is True:
+            logvar_init = math.log(stdv_init) * 2
             for logvar in self.logvars:
                 logvar.data.fill_(logvar_init)
 
     def forward(self, inputs):
-        if self.training and self.BBB is True:
+        # if self.training and self.BBB is True:
+        if self.BBB:
             # if use BBB and it is training
             self.sample()
             weight = self.sampled_weights[0]
             bias = self.sampled_weights[1]
         else:
             # use only mean for testing or non BBB
+            # Seriously? Shouldn't we use sampled weights for testing as well?
             weight = self.weight_mean
             bias = self.bias_mean
         return nn.functional.linear(inputs, weight, bias)
