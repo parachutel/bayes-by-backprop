@@ -5,6 +5,7 @@ from torch.autograd import Variable
 from torch.utils.data import DataLoader
 
 import codebase.utils as ut
+import data.data_utils as data_ut
 
 import os
 import numpy as np
@@ -17,6 +18,7 @@ class TimeSeriesPredModel(nn.Module):
     """
     def __init__(self, 
         input_feat_dim,
+        pred_feat_dim,
         hidden_feat_dim,
         n_input_steps,
         n_pred_steps,
@@ -30,6 +32,7 @@ class TimeSeriesPredModel(nn.Module):
         self.device = device
         self.name = name
         self.input_feat_dim = input_feat_dim
+        self.pred_feat_dim = pred_feat_dim
         self.hidden_feat_dim = hidden_feat_dim
         self.n_input_steps = n_input_steps
         self.n_pred_steps = n_pred_steps
@@ -42,7 +45,8 @@ class TimeSeriesPredModel(nn.Module):
             # Default one layer
             self.rnn = nn.LSTM(self.input_feat_dim, self.hidden_feat_dim)
 
-        self.decoder = nn.Linear(self.hidden_feat_dim, self.input_feat_dim)
+        self.decoder = nn.Linear(self.hidden_feat_dim, self.pred_feat_dim)
+
 
         
     def forward(self, x):
@@ -66,8 +70,13 @@ class TimeSeriesPredModel(nn.Module):
         # Segmenting the input sequence
         x = full_len_seq[:self.n_input_steps, :, :]
         output = self.forward(x)
-        output = output[self.n_input_steps:, :, :]
-        targets = full_len_seq[self.n_input_steps:, :, :]
+        if self.name == 'test_lstm_stocks':
+            output = output[self.n_input_steps:, :, :]
+            # Specially tailored
+            targets = full_len_seq[self.n_input_steps:, :, 0:4]
+        else:
+            output = output[self.n_input_steps:, :, :]
+            targets = full_len_seq[self.n_input_steps:, :, :]
         loss = self.criterion(output, targets)
         return loss
         
@@ -76,11 +85,6 @@ class TimeSeriesPredModel(nn.Module):
 def train(model, data, device, tqdm, kernel,
           iter_max=np.inf, iter_save=np.inf, iter_plot=np.inf, 
           reinitialize=False):
-    
-    log_path = './test_results/{}'.format(model.name)
-    if not os.path.exists(log_path):
-        os.makedirs(log_path)
-
     # Optimization
     if reinitialize:
         model.apply(ut.reset_weights)
@@ -108,40 +112,18 @@ def train(model, data, device, tqdm, kernel,
                     ut.save_model_by_name(model, i)
 
                 if i % iter_plot == 0:
-                    test_plot(model, i, kernel)
-                    plot_log_loss(model, loss_list, i)
+                    # test_plot(model, i, kernel)
+                    ut.plot_log_loss(model, loss_list, i)
 
                 if i == iter_max:
                     return
 
-def time_grid(start, sequence_len):
-    return np.linspace(start, start + 20, sequence_len)
-
-def dummy_data_creator(batch_size, n_batches, input_feat_dim, 
-                        n_input_steps, n_pred_steps, kernel, device):
-
-    with torch.no_grad():
-        data = []
-        sequence_len = n_input_steps + n_pred_steps
-        for i in range(n_batches):
-            batch = torch.zeros((sequence_len, batch_size, input_feat_dim), device=device)
-            # Vectorize?
-            for batch_item_idx in range(batch_size):
-                start = np.random.randint(100000)
-                t = time_grid(start, sequence_len)
-                x = kernel(t, input_feat_dim).reshape(sequence_len, -1)
-                batch[:, batch_item_idx, :] = \
-                    torch.tensor(x, device=device, 
-                        dtype=batch.dtype, requires_grad=False)
-            data.append(batch)
-        print('dummy data loaded!')
-    return data
 
 def test_plot(model, iter, kernel):
     with torch.no_grad():
         sequence_len = model.n_input_steps + model.n_pred_steps
         start = np.random.randint(1000)
-        t = time_grid(start, sequence_len)
+        t = data_ut.time_grid(start, start + 20, sequence_len)
         # batch_size = 1
         given_seq = torch.tensor(kernel(t, model.input_feat_dim), device=model.device, 
             dtype=torch.float32, requires_grad=False).reshape(sequence_len, 1, -1)
@@ -163,19 +145,13 @@ def test_plot(model, iter, kernel):
             plt.plot(pred_seq[:, 0, 0].numpy(), pred_seq[:, 0, 1].numpy(), label='Prediction')
             plt.xlabel('x')
             plt.ylabel('y')
+        elif model.input_feat_dim == 5: # stocks:
+            pass
         plt.title('iter = {}'.format(iter))
         plt.legend()
-        plt.savefig('./test_results/{}/pred_iter={}.png'.format(model.name, iter))
-        plt.clf()
+        plt.savefig('./logs/{}/pred_iter={}.png'.format(model.name, iter))
+        plt.close()
 
-
-def plot_log_loss(model, loss, iter):
-    plt.figure()
-    plt.plot(np.log(loss))
-    plt.xlabel('iter')
-    plt.ylabel('log-loss')
-    plt.savefig('./test_results/{}/loss.png'.format(model.name))
-    plt.clf()
 
 def sinusoidal_kernel(t, input_feat_dim):
     if input_feat_dim == 1:
@@ -186,17 +162,18 @@ def sinusoidal_kernel(t, input_feat_dim):
         return np.transpose(np.array(a))
 
 if __name__ == '__main__':
-    model_name = 'test_lstm_2d'
+    model_name = 'test_lstm_stocks'
     print('Model name:', model_name)
 
     # Data
-    batch_size = 50
-    n_batches = 2000
-    n_input_steps = 50
-    n_pred_steps = 20
-    input_feat_dim=2
+    batch_size = 128
+    # n_batches = 2000
+    n_input_steps = 90
+    n_pred_steps = 30
+    input_feat_dim = 5 # 5 for stocks data
+    pred_feat_dim = 4 # 4 for stocks data
     # Network
-    hidden_feat_dim=100
+    hidden_feat_dim = 100
     # Train settings
     iter_max = 50000
     iter_save = np.inf
@@ -204,25 +181,35 @@ if __name__ == '__main__':
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    data = dummy_data_creator(
+    full_seq_len = n_input_steps + n_pred_steps
+    
+    stocks_training_set, val_set = data_ut.load_stocks_data(
         batch_size=batch_size, 
-        n_batches=n_batches, 
-        input_feat_dim=input_feat_dim,
-        n_input_steps=n_input_steps, 
-        n_pred_steps=n_pred_steps,
-        kernel=sinusoidal_kernel,
+        full_seq_len=full_seq_len, 
         device=device)
+
+    # data = data_ut.dummy_data_creator(
+    #     batch_size=batch_size, 
+    #     n_batches=n_batches, 
+    #     input_feat_dim=input_feat_dim,
+    #     n_input_steps=n_input_steps, 
+    #     n_pred_steps=n_pred_steps,
+    #     kernel=sinusoidal_kernel,
+    #     device=device)
 
     model = TimeSeriesPredModel(
         input_feat_dim=input_feat_dim,
+        pred_feat_dim = pred_feat_dim,
         hidden_feat_dim=hidden_feat_dim,
         n_input_steps=n_input_steps,
         n_pred_steps=n_pred_steps,
         name=model_name,
         device=device).to(device)
 
+    ut.prepare_dirs(model_name, overwrite_existing=True)
+
     train(model=model,
-          data=data,
+          data=stocks_training_set,
           device=device,
           tqdm=tqdm.tqdm,
           kernel=sinusoidal_kernel,

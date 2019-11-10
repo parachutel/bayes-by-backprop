@@ -8,6 +8,7 @@ from torch.distributions.normal import Normal
 import math
 import scipy.stats
 import numpy as np
+import matplotlib.pyplot as plt
 
 def mul_var_normal(weights, means, logvars):
     """
@@ -97,18 +98,29 @@ def save_model_by_name(model, global_step):
     print('Saved to {}'.format(file_path))
 
 
-def prepare_writer(model_name, overwrite_existing=False):
-    log_dir = os.path.join('logs', model_name)
+def prepare_dirs(model_name, overwrite_existing=False):
     save_dir = os.path.join('checkpoints', model_name)
+    log_dir = os.path.join('logs', model_name)
     if overwrite_existing:
-        delete_existing(log_dir)
         delete_existing(save_dir)
-    # Sadly, I've been told *not* to use tensorflow :<
-    # writer = tf.summary.FileWriter(log_dir)
-    writer = None
-    return writer
+        delete_existing(log_dir)
+    # Create dirs
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+
 
 def delete_existing(path):
     if os.path.exists(path):
         print("Deleting existing path: {}".format(path))
         shutil.rmtree(path)
+
+def plot_log_loss(model, loss, iter):
+    plt.figure()
+    plt.plot(np.log(loss))
+    plt.xlabel('iter')
+    plt.ylabel('log-loss')
+    plt.savefig('./logs/{}/loss.png'.format(model.name))
+    plt.close()
+

@@ -7,11 +7,15 @@
 .idea
 *.bin
 *.zip
-
 *.png
+
+
 checkpoints
-test_results
-results
+logs
+
+# Data
+raw
+processed
 
 # Setuptools distribution and build folders.
 /dist/
@@ -27,8 +31,6 @@ keys/
 
 .idea
 
-logs/
-
 .ipynb_checkpoints
 ghostdriver.log
 
@@ -41,6 +43,3 @@ src
 .cache
 
 MUJOCO_LOG.TXT
-data
-results
-videos

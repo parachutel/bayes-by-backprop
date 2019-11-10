@@ -14,3 +14,9 @@
 - tested LSTM with dummy 1d sinusoidal data, worked well
 - testing LSTM with dummy 2d sinusoidal data, wait and see
 - TODO: test dummy sinusoidal data on BBBRNN
+
+11/09/19
+- implemented some data utility functions
+- processed stocks data
+- ran training on stocks data, not so good for now 
+- TODO: tune stocks prediction training
