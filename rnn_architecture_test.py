@@ -73,7 +73,9 @@ class TimeSeriesPredModel(nn.Module):
         if self.name == 'test_lstm_stocks':
             output = output[self.n_input_steps:, :, :]
             # Specially tailored
-            targets = full_len_seq[self.n_input_steps:, :, 0:4]
+            # Open    High     Low   Close
+            # Target feature = High
+            targets = full_len_seq[self.n_input_steps:, :, 1:2]
         else:
             output = output[self.n_input_steps:, :, :]
             targets = full_len_seq[self.n_input_steps:, :, :]
@@ -166,12 +168,12 @@ if __name__ == '__main__':
     print('Model name:', model_name)
 
     # Data
-    batch_size = 128
+    batch_size = 100
     # n_batches = 2000
-    n_input_steps = 90
-    n_pred_steps = 30
-    input_feat_dim = 5 # 5 for stocks data
-    pred_feat_dim = 4 # 4 for stocks data
+    n_input_steps = 95
+    n_pred_steps = 5
+    input_feat_dim = 4 # 4 for stocks data
+    pred_feat_dim = 1 # 1 for stocks data
     # Network
     hidden_feat_dim = 100
     # Train settings

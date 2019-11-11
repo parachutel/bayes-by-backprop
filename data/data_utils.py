@@ -55,7 +55,7 @@ def segment_raw_data(data_frame, full_seq_len):
 
 # batch_size, n_input_steps, n_pred_steps, device
 def load_stocks_data(batch_size=128, full_seq_len=120, device='cpu'):
-    input_feat_dim = 5
+    input_feat_dim = 4
     # Check if processed stocks data exists
     processed_training_data_file_name = PROJECT_DIR_PREFIX + \
         '/data/processed/stocks_training_seqLen={}_batchSize={}.pt'.\
@@ -93,7 +93,7 @@ def load_stocks_data(batch_size=128, full_seq_len=120, device='cpu'):
                 if df.shape[0] < full_seq_len or df.shape[1] != 7:
                     continue
 
-                df = df.drop(columns=['Date', 'OpenInt'])
+                df = df.drop(columns=['Date', 'OpenInt', 'Volume'])
                 seq_values = segment_raw_data(df, full_seq_len)
                 raw_sequences.extend(seq_values)
 
@@ -130,8 +130,8 @@ def load_stocks_data(batch_size=128, full_seq_len=120, device='cpu'):
                 else:
                     validation_set.append(batch)
     print('{} batches are prepared, with batch size {}'.format(n_batches, batch_size))
-    print('{} batches ara in training set'.format(n_batches_training))
-    print('{} batches ara in validation set'.format(n_batches - n_batches_training))
+    print('{} batches are in training set'.format(n_batches_training))
+    print('{} batches are in validation set'.format(n_batches - n_batches_training))
 
     torch.save(training_set, processed_training_data_file_name)
     torch.save(validation_set, processed_validation_data_file_name)
