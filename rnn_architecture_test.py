@@ -114,7 +114,8 @@ def train(model, data, device, tqdm, kernel,
                     ut.save_model_by_name(model, i)
 
                 if i % iter_plot == 0:
-                    # test_plot(model, i, kernel)
+                    if model.input_feat_dim <= 2:
+                        test_plot(model, i, kernel)
                     ut.plot_log_loss(model, loss_list, i)
 
                 if i == iter_max:
@@ -141,14 +142,14 @@ def test_plot(model, iter, kernel):
             plt.ylabel('x')
         elif model.input_feat_dim == 2:
             plt.plot(given_seq[:model.n_input_steps, 0, 0].numpy(), 
-                        given_seq[:model.n_input_steps, 0, 1].numpy(), label='Input')
+                    given_seq[:model.n_input_steps, 0, 1].numpy(), label='Input')
             plt.plot(given_seq[(model.n_input_steps - 1):, 0, 0].numpy(), 
                     given_seq[(model.n_input_steps - 1):, 0, 1].numpy(), label='Ground Truth')
-            plt.plot(pred_seq[:, 0, 0].numpy(), pred_seq[:, 0, 1].numpy(), label='Prediction')
+            plt.plot(pred_seq[:, 0, 0].numpy(), 
+                    pred_seq[:, 0, 1].numpy(), label='Prediction')
             plt.xlabel('x')
             plt.ylabel('y')
-        elif model.input_feat_dim == 5: # stocks:
-            pass
+
         plt.title('iter = {}'.format(iter))
         plt.legend()
         plt.savefig('./logs/{}/pred_iter={}.png'.format(model.name, iter))
@@ -157,47 +158,56 @@ def test_plot(model, iter, kernel):
 
 def sinusoidal_kernel(t, input_feat_dim):
     if input_feat_dim == 1:
+        # # Simple
         return np.random.randint(1, 4) * np.sin(t) * np.cos(4 * t) + (t - t[0])
     elif input_feat_dim == 2:
-        a = [np.random.randint(1, 4) * np.sin(np.random.rand() * 2 * t) + (t - t[0]),
-             np.random.randint(1, 4) * np.cos(np.random.rand() * 2 * t) + (t - t[0])]
+        # # Hard
+        std = np.random.rand() * 2
+        mean = np.random.randint(-3, 4)
+        wave_scale = np.random.randn(2) * std + mean
+        a = [wave_scale[0] * np.sin(np.random.rand() * 2 * t) + (t - t[0]),
+             wave_scale[1] * np.cos(np.random.rand() * 2 * t) + (t - t[0])]
+        # # Simple:
+        # a = [np.random.randint(1, 4) * np.sin(np.random.rand() * 2 * t) + (t - t[0]),
+        #      np.random.randint(1, 4) * np.cos(np.random.rand() * 2 * t) + (t - t[0])]
         return np.transpose(np.array(a))
 
 if __name__ == '__main__':
-    model_name = 'test_lstm_stocks'
+    run = 1
+    model_name = 'test_lstm_2d_run={}'.format(run)
     print('Model name:', model_name)
 
     # Data
-    batch_size = 100
-    # n_batches = 2000
-    n_input_steps = 95
-    n_pred_steps = 5
-    input_feat_dim = 4 # 4 for stocks data
-    pred_feat_dim = 1 # 1 for stocks data
+    batch_size = 80
+    n_batches = 2000 # used by dummy data
+    n_input_steps = 50
+    n_pred_steps = 20
+    input_feat_dim = 2 # 4 for stocks data
+    pred_feat_dim = 2 # 1 for stocks data
     # Network
-    hidden_feat_dim = 100
+    hidden_feat_dim = 80
     # Train settings
-    iter_max = 50000
-    iter_save = np.inf
+    iter_max = 80000
+    iter_save = np.inf # Not saving models for now
     iter_plot = 1000
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     full_seq_len = n_input_steps + n_pred_steps
     
-    stocks_training_set, val_set = data_ut.load_stocks_data(
-        batch_size=batch_size, 
-        full_seq_len=full_seq_len, 
-        device=device)
-
-    # data = data_ut.dummy_data_creator(
+    # stocks_training_set, val_set = data_ut.load_stocks_data(
     #     batch_size=batch_size, 
-    #     n_batches=n_batches, 
-    #     input_feat_dim=input_feat_dim,
-    #     n_input_steps=n_input_steps, 
-    #     n_pred_steps=n_pred_steps,
-    #     kernel=sinusoidal_kernel,
+    #     full_seq_len=full_seq_len, 
     #     device=device)
+
+    dummy_training_set = data_ut.dummy_data_creator(
+        batch_size=batch_size, 
+        n_batches=n_batches, 
+        input_feat_dim=input_feat_dim,
+        n_input_steps=n_input_steps, 
+        n_pred_steps=n_pred_steps,
+        kernel=sinusoidal_kernel,
+        device=device)
 
     model = TimeSeriesPredModel(
         input_feat_dim=input_feat_dim,
@@ -211,7 +221,7 @@ if __name__ == '__main__':
     ut.prepare_dirs(model_name, overwrite_existing=True)
 
     train(model=model,
-          data=stocks_training_set,
+          data=dummy_training_set, # Change
           device=device,
           tqdm=tqdm.tqdm,
           kernel=sinusoidal_kernel,

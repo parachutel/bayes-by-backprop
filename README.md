@@ -20,3 +20,12 @@
 - processed stocks data
 - ran training on stocks data, not so good for now 
 - TODO: tune stocks prediction training
+
+
+11/11/19
+- figured out structure of BBBRNN
+- implemented time-series prediction model with BBB
+- tested the model, training was intractable
+- TODO: loss re-weighting with minibatch
+- TODO: inspect details in the model
+- TODO: debug training

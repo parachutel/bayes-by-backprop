@@ -7,13 +7,14 @@ class BBBLayer(nn.Module):
     """
     a base class for all BBB layer with gaussian mixture prior
     """
-    def __init__(self, pi, std1, std2, gpu, BBB):
+    def __init__(self, pi, std1, std2, gpu, BBB, bias=True):
         super(BBBLayer, self).__init__()
         self.pi = pi
         self.std1 = std1
         self.std2 = std2
         self.gpu = gpu
         self.BBB = BBB
+        self.bias = bias
 
         self.sampled_weights = []
         self.sampled_sharpen_weights = []
@@ -60,7 +61,6 @@ class BBBLayer(nn.Module):
         for i in range(len(self.sampled_weights)):
             sharp_w = self.sampled_sharpen_weights[i]
             w = self.sampled_weights[i].detach()
-
             # without constant term
             kl += torch.sum((sharp_w - w).pow(2) / (2*sigma**2))
 
@@ -70,17 +70,20 @@ class BBBLayer(nn.Module):
         """
         Use the current sampled weights to calculate the KL divergence 
         from posterior to prior.
-        :return: The KL
+        :return: One point estimate for KL, computed through the sum of the 
+            elementwise log-likelihood of all (this sampled) weights.
         """
         assert len(self.sampled_weights) != 0 # make sure we sample weights
 
-        log_posterior = ut.mul_var_normal(
+
+        log_posterior = ut.log_normal_for_weights(
             weights=self.sampled_weights,
-            means=[ mean.detach() for mean in self.means],
-            logvars=[ logvar.detach() for logvar in self.logvars]
-        )
+            means=[mean.detach() for mean in self.means],
+            logvars=[logvar.detach() for logvar in self.logvars])
+
         log_prior = ut.log_scale_gaussian_mix_prior(self.sampled_weights, 
-            pi=self.pi, std1=self.std1, std2=self.std2)
+                                pi=self.pi, std1=self.std1, std2=self.std2)
+
         kl = log_posterior - log_prior
         return kl
 

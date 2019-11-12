@@ -144,7 +144,7 @@ class BBBRNN(BBBLayer):
                 b_ih = weights[start+2]
                 b_hh = weights[start+3]
                 start += 4
-                all_weights.append([w_ih, w_hh, b_ih, b_hh])
+                all_weights.extend([w_ih, w_hh, b_ih, b_hh])
 
         return all_weights
 
@@ -156,11 +156,13 @@ class BBBRNN(BBBLayer):
             self.sample()
             weights = self.sampled_weights
         else:
+            # Problematic for time-series prediction
+            # TODO
             weights = self.means
 
         # modify weights to pytorch format
         self.all_weights = self.get_all_weights(weights)
-        # RNN base code
+        # Adopted from pytorch RNN base code
         is_packed = isinstance(input, PackedSequence)
         if is_packed:
             input, batch_sizes = input
@@ -180,23 +182,20 @@ class BBBRNN(BBBLayer):
             if self.mode == 'LSTM':
                 hx = (hx, hx)
 
-        func = self._backend.RNN(
-            self.mode,
-            self.input_size,
-            self.hidden_size,
-            num_layers=self.num_layers,
-            batch_first=self.batch_first,
-            dropout=self.dropout,
-            train=self.training,
-            bidirectional=self.bidirectional,
-            batch_sizes=batch_sizes,
-            dropout_state=self.dropout_state,
-            flat_weight=None
-        )
-        # change this line
-        output, hidden = func(input, self.all_weights, hx)
+        if batch_sizes is None:
+            result = nn._VF.lstm(input, hx, self.all_weights, self.bias, 
+                self.num_layers, self.dropout, self.training, 
+                self.bidirectional, self.batch_first)
+        else:
+            result = nn._VF.lstm(input, batch_sizes, hx, self.all_weights, 
+                self.bias, self.num_layers, self.dropout, self.training, 
+                self.bidirectional)
+
+        output, hidden = result[0], result[1:]
+
         if is_packed:
             output = PackedSequence(output, batch_sizes)
+
         return output, hidden
 
 

@@ -3,6 +3,7 @@ import shutil
 import sys
 
 import torch
+from torch.nn import functional as F
 from torch.distributions.normal import Normal
 
 import math
@@ -10,9 +11,45 @@ import scipy.stats
 import numpy as np
 import matplotlib.pyplot as plt
 
-def mul_var_normal(weights, means, logvars):
+def gaussian_parameters(h, dim=-1):
     """
-    theta is from a multivariate gaussian with diagnol covariance
+    Converts generic real-valued representations into mean and variance
+    parameters of a Gaussian distribution
+
+    Args:
+        h: tensor: (batch, ..., dim, ...): Arbitrary tensor
+        dim: int: (): Dimension along which to split the tensor for mean and
+            variance
+
+    Returns:
+        m: tensor: (batch, ..., dim / 2, ...): Mean
+        v: tensor: (batch, ..., dim / 2, ...): Variance
+    """
+    m, h = torch.split(h, h.size(dim) // 2, dim=dim)
+    v = F.softplus(h) + 1e-8
+    return m, v
+
+def log_normal(x, m, v):
+    """
+    Computes the elem-wise log probability of a Gaussian and then sum over the
+    last dim. Basically we're assuming all dims are batch dims except for the
+    last dim.
+
+    Args:
+        x: tensor: (batch_1, batch_2, ..., batch_k, dim): Observation
+        m: tensor: (batch_1, batch_2, ..., batch_k, dim): Mean
+        v: tensor: (batch_1, batch_2, ..., batch_k, dim): Variance
+
+    Return:
+        log_prob: scalar: log probability of all the samples.
+    """
+    log_prob = (-torch.pow(x - m, 2) / v - torch.log(2 * np.pi * v)) / 2
+    log_prob = torch.sum(log_prob)
+    return log_prob
+
+def log_normal_for_weights(weights, means, logvars):
+    """
+    weights is from a multivariate gaussian with diagnol variance
     return the loglikelihood.
     :param weights: a list of weights
     :param means: a list of means
@@ -74,7 +111,7 @@ def log_scale_gaussian_mix_prior(weights, pi, std1, std2):
         # w contains numerous elements
         log_prob1 = Normal(0, std1).log_prob(w)
         log_prob2 = Normal(0, std2).log_prob(w)
-        max_prob = torch.max(log_prob1, log_prob2)
+        # max_prob = torch.max(log_prob1, log_prob2)
         # Numerically stable scaled log_sum_exp
         log_mix_prob = log_prob1 \
             + (pi + (1 - pi) * ((log_prob2 - log_prob1).exp())).log()

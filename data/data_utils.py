@@ -4,6 +4,7 @@ import sys
 import glob
 from random import shuffle
 import pandas as pd
+import numpy as np
 import tqdm
 
 import torch
@@ -20,6 +21,22 @@ def is_non_zero_file(fpath):
 def time_grid(start, end, sequence_len):
     return np.linspace(start, end, sequence_len)
 
+def sinusoidal_kernel(t, input_feat_dim):
+    if input_feat_dim == 1:
+        # # Simple
+        return np.random.randint(1, 4) * np.sin(t) * np.cos(4 * t) + (t - t[0])
+    elif input_feat_dim == 2:
+        # # Hard
+        std = np.random.rand() * 2
+        mean = np.random.randint(-3, 4)
+        wave_scale = np.random.randn(2) * std + mean
+        a = [wave_scale[0] * np.sin(np.random.rand() * 2 * t) + (t - t[0]),
+             wave_scale[1] * np.cos(np.random.rand() * 2 * t) + (t - t[0])]
+        # # Simple:
+        # a = [np.random.randint(1, 4) * np.sin(np.random.rand() * 2 * t) + (t - t[0]),
+        #      np.random.randint(1, 4) * np.cos(np.random.rand() * 2 * t) + (t - t[0])]
+        return np.transpose(np.array(a))
+
 def dummy_data_creator(batch_size, n_batches, input_feat_dim, 
                         n_input_steps, n_pred_steps, kernel, device):
 
@@ -27,7 +44,8 @@ def dummy_data_creator(batch_size, n_batches, input_feat_dim,
         data = []
         sequence_len = n_input_steps + n_pred_steps
         for i in range(n_batches):
-            batch = torch.zeros((sequence_len, batch_size, input_feat_dim), device=device)
+            batch = torch.zeros((sequence_len, batch_size, input_feat_dim), 
+                                device=device)
             # Vectorize?
             for batch_item_idx in range(batch_size):
                 start = np.random.randint(100000)
@@ -37,7 +55,7 @@ def dummy_data_creator(batch_size, n_batches, input_feat_dim,
                     torch.tensor(x, device=device, 
                         dtype=batch.dtype, requires_grad=False)
             data.append(batch)
-        print('dummy data loaded!')
+        print('Dummy data created!')
     return data
 
 
