@@ -29,13 +29,13 @@ class BBBLayer(nn.Module):
         for i in range(len(self.means)):
             mean = self.means[i]
             logvar = self.logvars[i]
-            eps = torch.zeros(mean.size())
+            eps = torch.randn_like(logvar)
             if self.gpu:
                 eps = eps.cuda()
 
-            eps.normal_()
+            # eps.normal_()
             std = logvar.mul(0.5).exp()
-            weight = mean + Variable(eps) * std
+            weight = mean + eps * std
             self.sampled_weights.append(weight)
 
     def resample_with_sharpening(self, grads, eta, std=0.02):
@@ -44,15 +44,15 @@ class BBBLayer(nn.Module):
         for i in range(len(self.sampled_weights)):
             w = self.sampled_weights[i]
             # Random number
-            eps = torch.zeros(w.size())
+            eps = torch.randn_like(w)
             if self.gpu:
                 eps = eps.cuda()
 
-            eps.normal_()
+            # eps.normal_()
             g = grads[i].detach()
             # Sample fron normal wih posterior sharpening
             h_post_means = (w - eta[i] * g)
-            weight = h_post_means + Variable(eps) * std
+            weight = h_post_means + eps * std
             self.h_post_means.append(h_post_means)
             self.sampled_sharpen_weights.append(weight)
 

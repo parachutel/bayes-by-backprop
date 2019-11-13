@@ -7,19 +7,19 @@ from codebase.train import train
 import codebase.utils as ut
 import data.data_utils as data_ut
 
-dev_mode = True
+dev_mode = False
 
 # Data
 batch_size = 20
-n_batches = 1000 # used by dummy data
+n_batches = 3000 # used by dummy data
 n_input_steps = 30
 n_pred_steps = 10
-input_feat_dim = 2
-pred_feat_dim = 2
+input_feat_dim = 1
+pred_feat_dim = 1
 dataset_name = 'dummy{}d'.format(input_feat_dim)
 
 # Network
-hidden_feat_dim = 80
+hidden_feat_dim = 50
 
 # Model
 cell = 'LSTM'
@@ -40,7 +40,7 @@ training = True
 lr = 2
 run = 0
 iter_max = 50000
-iter_plot = np.inf
+iter_plot = 1000
 
 # Enforced settings:
 if not BBB:
@@ -76,6 +76,8 @@ print(model_name)
 
 if not dev_mode:
     ut.prepare_dirs(model_name, overwrite_existing=True)
+else:
+    iter_plot = np.inf
 
 training_set = data_ut.dummy_data_creator(
         batch_size=batch_size, 

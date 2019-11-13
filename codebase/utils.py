@@ -11,6 +11,21 @@ import scipy.stats
 import numpy as np
 import matplotlib.pyplot as plt
 
+def sample_gaussian(m, v):
+    """
+    Element-wise application reparameterization trick to sample from Gaussian
+
+    Args:
+        m: tensor: (batch, ...): Mean
+        v: tensor: (batch, ...): Variance
+
+    Return:
+        z: tensor: (batch, ...): Samples
+    """
+    # z = torch.distributions.normal.Normal(m, torch.sqrt(v)).rsample()
+    z = m + torch.sqrt(v) * torch.randn_like(v) 
+    return z
+
 def gaussian_parameters(h, dim=-1):
     """
     Converts generic real-valued representations into mean and variance
@@ -44,7 +59,7 @@ def log_normal(x, m, v):
         log_prob: scalar: log probability of all the samples.
     """
     log_prob = (-torch.pow(x - m, 2) / v - torch.log(2 * np.pi * v)) / 2
-    log_prob = torch.sum(log_prob)
+    log_prob = torch.sum(log_prob, dim=-1)
     return log_prob
 
 def log_normal_for_weights(weights, means, logvars):
@@ -170,27 +185,23 @@ def test_plot(model, iter, kernel):
         # batch_size = 1
         given_seq = torch.tensor(kernel(t, model.input_feat_dim), device=model.device, 
             dtype=torch.float32, requires_grad=False).reshape(sequence_len, 1, -1)
-        if model.BBB:
-            inputs = given_seq[:model.n_input_steps, :, :]
-            inputs = model.pad_input_sequence(inputs)
-            encoded_outputs, _ = model.rnn(inputs)
-            outputs = model.decoder(encoded_outputs)
-            outputs = outputs[model.n_input_steps:, :, :]
-            if model.likelihood_cost_form == 'gaussian':
-                mean, var = gaussian_parameters(outputs, dim=-1)
-                pred_seq = mean
-            elif model.likelihood_cost_form == 'mse':
-                pred_seq = outputs
-        else:
-            pred_seq = model.forward(given_seq[:model.n_input_steps, :, :])
-            if pred_seq.shape[0] == model.full_seq_len:
-                pred_seq = pred_seq[model.n_input_steps:, :, :]
+        inputs = given_seq[:model.n_input_steps, :, :]
+        outputs = model.forward(inputs)
+        if model.likelihood_cost_form == 'gaussian':
+            mean, var = gaussian_parameters(outputs, dim=-1)
+            pred_seq = sample_gaussian(mean, var)
+        elif model.likelihood_cost_form == 'mse':
+            pred_seq = outputs
 
         plt.figure()
         if model.input_feat_dim == 1:
             plt.plot(t, given_seq[:, 0, 0].numpy(), label='Ground Truth')
             plt.plot(t[model.n_input_steps:], pred_seq[:, 0, 0].numpy(), 
-                label='Prediction')
+                label='One Prediction Sample')
+            if model.likelihood_cost_form == 'gaussian':
+                plt.errorbar(t[model.n_input_steps:], mean.numpy(), 
+                    yerr=var.squeeze().sqrt().numpy(), capsize=2, 
+                    label='Mean and Std')
             plt.xlabel('t')
             plt.ylabel('x')
         elif model.input_feat_dim == 2:

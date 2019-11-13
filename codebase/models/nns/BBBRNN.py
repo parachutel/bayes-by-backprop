@@ -156,8 +156,6 @@ class BBBRNN(BBBLayer):
             self.sample()
             weights = self.sampled_weights
         else:
-            # Problematic for time-series prediction
-            # TODO
             weights = self.means
 
         # modify weights to pytorch format
@@ -173,14 +171,14 @@ class BBBRNN(BBBLayer):
 
         if hx is None:
             num_directions = 2 if self.bidirectional else 1
-            hx = torch.autograd.Variable(
-                input.data.new(self.num_layers * num_directions,
-                                max_batch_size,
-                                self.hidden_size).zero_(), 
-                requires_grad=False)
+            zeros = torch.zeros(self.num_layers * num_directions,
+                                max_batch_size, self.hidden_size,
+                                dtype=input.dtype, device=input.device)
 
             if self.mode == 'LSTM':
-                hx = (hx, hx) # (h, c)
+                hx = (zeros, zeros) # (h, c)
+            else:
+                hx = zeros
 
         if batch_sizes is None:
             result = nn._VF.lstm(input, hx, self.all_weights, self.bias, 

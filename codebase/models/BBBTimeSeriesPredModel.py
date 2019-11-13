@@ -46,8 +46,7 @@ class BBBTimeSeriesPredModel(nn.Module):
         self.task_mode = task_mode
         self.rnn_cell_type = rnn_cell_type
         self.likelihood_cost_form = likelihood_cost_form
-        if self.likelihood_cost_form == 'mse':
-            self.loss_fn = nn.MSELoss()
+        self.mse_fn = nn.MSELoss()
 
         # Build network
         # NOTE! Not using an encoder to process input!
@@ -124,11 +123,13 @@ class BBBTimeSeriesPredModel(nn.Module):
         """
         if self.likelihood_cost_form == 'mse':
             # This method is not validated
-            return self.loss_fn(outputs, targets)
+            return self.mse_fn(outputs, targets)
         elif self.likelihood_cost_form == 'gaussian':
-            # return the negative log-probability of target
+            # return the mean negative log-probability of target
             mean, var = ut.gaussian_parameters(outputs, dim=-1)
-            return -ut.log_normal(targets, mean, var)
+            return -torch.mean(ut.log_normal(targets, mean, var))
+            # sampled_pred = ut.sample_gaussian(mean, var)
+            # return self.mse_fn(sampled_pred, targets)
 
     def get_loss(self, output, targets):
         """

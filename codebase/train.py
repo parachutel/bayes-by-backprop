@@ -28,12 +28,12 @@ def train(model, train_data, batch_size, n_batches, device,
     # # Model
     # hidden = model.init_hidden(batch_size)
 
-    i = 0 
+    i = 0 # i is num of gradient steps taken by end of loop iteration
     loss_list = []
     with tqdm.tqdm(total=iter_max) as pbar:
         while True:
             for batch in train_data:
-                i += 1 # i is num of gradient steps taken by end of loop iteration
+                i += 1 
                 optimizer.zero_grad()
 
                 inputs = batch[:model.n_input_steps, :, :]
@@ -42,20 +42,23 @@ def train(model, train_data, batch_size, n_batches, device,
                 # reinit hidden every batch
                 # hidden = model.init_hidden(batch_size)
                 outputs = model.forward(inputs, targets=targets)
-                NLL, KL, KL_sharp = model.get_loss(outputs, targets)
+                batch_mean_nll, KL, KL_sharp = model.get_loss(outputs, targets)
                 
                 # # Re-weighting for minibatches
-                if model.likelihood_cost_form == 'gaussian':
-                    # NLL is the sum over the minibatch
-                    NLL_term = NLL
-                elif model.likelihood_cost_form == 'mse':
-                    # NLL is the mean over the minibatch
-                    NLL_term = NLL * model.full_seq_len
-                # KL(q|p) / BC
-                KL_term = KL / batch_size / n_batches
+                # rescale to the mean nll of each sequence?
+                NLL_term = batch_mean_nll * model.n_pred_steps * batch_size
+
+                # KL_term = KL / batch_size / n_batches
+                # KL_term = KL 
+                # KL_term = KL / batch_size
+                KL_term = KL / n_batches
+
                 loss = NLL_term + KL_term
+                # print(NLL_term, KL_term)
+
                 if model.sharpen:
-                    loss += KL_sharp / n_batches
+                    loss += KL_sharp / batch_size
+                    # loss += KL_sharp / n_batches
 
                 loss_list.append(loss)
 
@@ -69,10 +72,11 @@ def train(model, train_data, batch_size, n_batches, device,
 
                 # Print progress
                 if model.likelihood_cost_form == 'gaussian':
-                    mean, _ = ut.gaussian_parameters(outputs, dim=-1)
-                    mse_val = mse(mean, targets)
+                    mean, var = ut.gaussian_parameters(outputs, dim=-1)
+                    sampled_pred = ut.sample_gaussian(mean, var)
+                    mse_val = mse(sampled_pred, targets)
                 elif model.likelihood_cost_form == 'mse':
-                    mse_val = NLL_term
+                    mse_val = batch_mean_nll
                 pbar.set_postfix(loss='{:.2e}'.format(loss[0]), 
                                  mse='{:.2e}'.format(mse_val))
                 pbar.update(1)
