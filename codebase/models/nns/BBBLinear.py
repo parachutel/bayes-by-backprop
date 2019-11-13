@@ -17,7 +17,8 @@ class BBBLinear(BBBLayer):
         self.weight_mean = nn.Parameter(torch.Tensor(out_features, in_features))
         self.bias_mean = nn.Parameter(torch.Tensor(out_features))
         if self.BBB is True:
-            self.weight_logvar = nn.Parameter(torch.Tensor(out_features, in_features))
+            self.weight_logvar = \
+                nn.Parameter(torch.Tensor(out_features, in_features))
             self.bias_logvar = nn.Parameter(torch.Tensor(out_features))
 
         # used for KL
@@ -43,7 +44,6 @@ class BBBLinear(BBBLayer):
                 logvar.data.fill_(logvar_init)
 
     def forward(self, inputs):
-        # if self.training and self.BBB is True:
         if self.BBB:
             # if use BBB and it is training
             self.sample()
@@ -51,7 +51,6 @@ class BBBLinear(BBBLayer):
             bias = self.sampled_weights[1]
         else:
             # use only mean for testing or non BBB
-            # Seriously? Shouldn't we use sampled weights for testing as well?
             weight = self.weight_mean
             bias = self.bias_mean
         return nn.functional.linear(inputs, weight, bias)

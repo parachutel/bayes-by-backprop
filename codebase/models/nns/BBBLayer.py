@@ -62,7 +62,7 @@ class BBBLayer(nn.Module):
             sharp_w = self.sampled_sharpen_weights[i]
             w = self.sampled_weights[i].detach()
             # without constant term
-            kl += torch.sum((sharp_w - w).pow(2) / (2*sigma**2))
+            kl += torch.sum((sharp_w - w).pow(2) / (2 * sigma**2))
 
         return kl
 
@@ -74,7 +74,6 @@ class BBBLayer(nn.Module):
             elementwise log-likelihood of all (this sampled) weights.
         """
         assert len(self.sampled_weights) != 0 # make sure we sample weights
-
 
         log_posterior = ut.log_normal_for_weights(
             weights=self.sampled_weights,

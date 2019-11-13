@@ -29,3 +29,11 @@
 - TODO: loss re-weighting with minibatch
 - TODO: inspect details in the model
 - TODO: debug training
+
+11/12/19
+- training of BBBLSTM can run smoothly
+- PROBLEM: BBBLSTM always output 'straight lines', without much expressiveness
+- PROBLEM: easily slow down
+- PROBLEM: graph reset after each `loss.backward()`, had to use `retain_graph=True`
+- TODO: inspect details in the model thoroughly
+- TODO: implement evaluation methods (using MC sampling and using mean weights)

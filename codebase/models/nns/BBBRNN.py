@@ -180,7 +180,7 @@ class BBBRNN(BBBLayer):
                 requires_grad=False)
 
             if self.mode == 'LSTM':
-                hx = (hx, hx)
+                hx = (hx, hx) # (h, c)
 
         if batch_sizes is None:
             result = nn._VF.lstm(input, hx, self.all_weights, self.bias, 

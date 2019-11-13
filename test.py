@@ -14,10 +14,9 @@ w2 = np.random.rand(7, 2)
 weights = [torch.Tensor(w1), torch.Tensor(w2)]
 
 
-log_p_my = ut.log_scale_gaussian_mix_prior(weights, pi, std1, std2)
+log_p = ut.log_scale_gaussian_mix_prior(weights, pi, std1, std2)
 
-print(log_p_my)
-
+print(log_p)
 log_prob = 0
 for w in [w1, w2]:
     for row in w:
@@ -30,25 +29,25 @@ print(log_prob)
 
 
 # Test BBBLinear
-from codebase.models.nns.BBBLinear import BBBLinear
-import torch.nn as nn
+# from codebase.models.nns.BBBLinear import BBBLinear
+# import torch.nn as nn
 
-test_net = nn.Sequential(
-    BBBLinear(784, 300, 
-        pi=pi, std1=std1,
-        std2=std2, BBB=True,
-        gpu=False),
-    nn.ELU(),
-    BBBLinear(300, 300, 
-        pi=pi, std1=std1,
-        std2=std2, BBB=True,
-        gpu=False),
-    nn.ELU(),
-    BBBLinear(300, 4,
-        pi=pi, std1=std1,
-        std2=std2, BBB=True,
-        gpu=False),
-)
-# Batch x Channel x Height x Width
-test_net_out = test_net(torch.Tensor(np.random.rand(128, 3, 1, 784)))
-print(test_net_out.shape)
+# test_net = nn.Sequential(
+#     BBBLinear(784, 300, 
+#         pi=pi, std1=std1,
+#         std2=std2, BBB=True,
+#         gpu=False),
+#     nn.ELU(),
+#     BBBLinear(300, 300, 
+#         pi=pi, std1=std1,
+#         std2=std2, BBB=True,
+#         gpu=False),
+#     nn.ELU(),
+#     BBBLinear(300, 4,
+#         pi=pi, std1=std1,
+#         std2=std2, BBB=True,
+#         gpu=False),
+# )
+# # Batch x Channel x Height x Width
+# test_net_out = test_net(torch.Tensor(np.random.rand(128, 3, 1, 784)))
+# print(test_net_out.shape)

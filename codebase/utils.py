@@ -76,21 +76,6 @@ def log_normal_for_weights(weights, means, logvars):
 
     return ll
 
-def log_sum_exp(x, dim=0):
-    """
-    Compute the log(sum(exp(x), dim)) in a numerically stable manner
-
-    Args:
-        x: tensor: (...): Arbitrary tensor
-        dim: int: (): Dimension along which sum is computed
-
-    Return:
-        _: tensor: (...): log(sum(exp(x), dim))
-    """
-    max_x = torch.max(x, dim)[0]
-    new_x = x - max_x.unsqueeze(dim).expand_as(x)
-    return max_x + (new_x.exp().sum(dim)).log()
-
 
 def log_scale_gaussian_mix_prior(weights, pi, std1, std2):
     """
@@ -105,19 +90,34 @@ def log_scale_gaussian_mix_prior(weights, pi, std1, std2):
     :param logstd2: a scalar, hyper-param, std2 << 1
     :return log_prob: prior log-likelihood of the weights
     """
-    log_prob = 0
-    for w in weights:
-        # weights is a collection of weight vectors
-        # w contains numerous elements
-        log_prob1 = Normal(0, std1).log_prob(w)
-        log_prob2 = Normal(0, std2).log_prob(w)
-        # max_prob = torch.max(log_prob1, log_prob2)
-        # Numerically stable scaled log_sum_exp
-        log_mix_prob = log_prob1 \
-            + (pi + (1 - pi) * ((log_prob2 - log_prob1).exp())).log()
-        log_prob += torch.sum(log_mix_prob)
+    # # Viewing w_j as an elemental weight entry
+    # log_prob = 0
+    # for w in weights:
+    #     # weights is a collection of weight vectors
+    #     # w contains numerous elements
+    #     log_prob1 = Normal(0, std1).log_prob(w)
+    #     log_prob2 = Normal(0, std2).log_prob(w)
+    #     # Numerically stable scaled log_sum_exp
+    #     log_mix_prob = log_prob1 \
+    #         + (pi + (1 - pi) * ((log_prob2 - log_prob1).exp())).log()
+    #     log_prob += torch.sum(log_mix_prob)
 
-    return log_prob
+    # # Viewing w_j as a weight matrix
+    ll = 0
+    for w in weights:
+        var1 = std1 ** 2
+        ll1 = torch.sum(
+            -(w**2)/(2*var1) - np.log(std1) - math.log(math.sqrt(2*math.pi))
+        )
+        var2 = std2 ** 2
+        ll2 = torch.sum(
+            -(w**2)/(2*var2) - np.log(std2) - math.log(math.sqrt(2*math.pi))
+        )
+        # use a numerical stable one
+        # ll1 + log(pi + (1-pi) exp(ll2-ll1))
+        ll += ll1 + ( pi + (1-pi) * ((ll2-ll1).exp()) ).log()
+
+    return ll
 
 def reset_weights(m):
     try:
@@ -161,3 +161,49 @@ def plot_log_loss(model, loss, iter):
     plt.savefig('./logs/{}/loss.png'.format(model.name))
     plt.close()
 
+def test_plot(model, iter, kernel):
+    import data.data_utils as data_ut
+    with torch.no_grad():
+        sequence_len = model.n_input_steps + model.n_pred_steps
+        start = np.random.randint(1000)
+        t = data_ut.time_grid(start, start + 20, sequence_len)
+        # batch_size = 1
+        given_seq = torch.tensor(kernel(t, model.input_feat_dim), device=model.device, 
+            dtype=torch.float32, requires_grad=False).reshape(sequence_len, 1, -1)
+        if model.BBB:
+            inputs = given_seq[:model.n_input_steps, :, :]
+            inputs = model.pad_input_sequence(inputs)
+            encoded_outputs, _ = model.rnn(inputs)
+            outputs = model.decoder(encoded_outputs)
+            outputs = outputs[model.n_input_steps:, :, :]
+            if model.likelihood_cost_form == 'gaussian':
+                mean, var = gaussian_parameters(outputs, dim=-1)
+                pred_seq = mean
+            elif model.likelihood_cost_form == 'mse':
+                pred_seq = outputs
+        else:
+            pred_seq = model.forward(given_seq[:model.n_input_steps, :, :])
+            if pred_seq.shape[0] == model.full_seq_len:
+                pred_seq = pred_seq[model.n_input_steps:, :, :]
+
+        plt.figure()
+        if model.input_feat_dim == 1:
+            plt.plot(t, given_seq[:, 0, 0].numpy(), label='Ground Truth')
+            plt.plot(t[model.n_input_steps:], pred_seq[:, 0, 0].numpy(), 
+                label='Prediction')
+            plt.xlabel('t')
+            plt.ylabel('x')
+        elif model.input_feat_dim == 2:
+            plt.plot(given_seq[:model.n_input_steps, 0, 0].numpy(), 
+                    given_seq[:model.n_input_steps, 0, 1].numpy(), label='Input')
+            plt.plot(given_seq[(model.n_input_steps - 1):, 0, 0].numpy(), 
+                    given_seq[(model.n_input_steps - 1):, 0, 1].numpy(), label='Ground Truth')
+            plt.plot(pred_seq[:, 0, 0].numpy(), 
+                    pred_seq[:, 0, 1].numpy(), label='Prediction')
+            plt.xlabel('x')
+            plt.ylabel('y')
+
+        plt.title('iter = {}'.format(iter))
+        plt.legend()
+        plt.savefig('./logs/{}/pred_iter={}.png'.format(model.name, iter))
+        plt.close()

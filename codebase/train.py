@@ -1,4 +1,5 @@
 import torch
+import torch.nn as nn
 from torch import optim
 
 import numpy as np
@@ -8,22 +9,24 @@ import codebase.utils as ut
 import data.data_utils as data_ut
 
 def train(model, train_data, batch_size, n_batches, device, 
-            kernel=None,
-            lr=1e-3,
+            lr=2,
             clip_grad=5,
             iter_max=np.inf, 
             iter_save=np.inf, 
             iter_plot=np.inf, 
-            reinitialize=False):
+            reinitialize=False,
+            kernel=None):
 
     # Optimization
     if reinitialize:
         model.apply(ut.reset_weights)
-        
+
     optimizer = optim.Adam(model.parameters(), lr=lr)
 
-    # Model
-    hidden = model.init_hidden(batch_size)
+    mse = nn.MSELoss()
+
+    # # Model
+    # hidden = model.init_hidden(batch_size)
 
     i = 0 
     loss_list = []
@@ -35,12 +38,19 @@ def train(model, train_data, batch_size, n_batches, device,
 
                 inputs = batch[:model.n_input_steps, :, :]
                 targets = batch[model.n_input_steps:, :, :]
-                outputs, hidden = model.forward(inputs, hidden, targets)
+                # Since the data is not continued from batch to batch
+                # reinit hidden every batch
+                # hidden = model.init_hidden(batch_size)
+                outputs = model.forward(inputs, targets=targets)
                 NLL, KL, KL_sharp = model.get_loss(outputs, targets)
                 
                 # # Re-weighting for minibatches
-                # Here NLL is already the sum over the minibatch
-                NLL_term = NLL
+                if model.likelihood_cost_form == 'gaussian':
+                    # NLL is the sum over the minibatch
+                    NLL_term = NLL
+                elif model.likelihood_cost_form == 'mse':
+                    # NLL is the mean over the minibatch
+                    NLL_term = NLL * model.full_seq_len
                 # KL(q|p) / BC
                 KL_term = KL / batch_size / n_batches
                 loss = NLL_term + KL_term
@@ -53,11 +63,18 @@ def train(model, train_data, batch_size, n_batches, device,
                 # gradient problem in RNNs / LSTMs.
                 torch.nn.utils.clip_grad_norm_(model.parameters(), clip_grad)
 
-                loss.backward(retain_graph=True)
-                # loss.backward()
+                # loss.backward(retain_graph=True)
+                loss.backward()
                 optimizer.step()
 
-                pbar.set_postfix(loss='{:.2e}'.format(loss[0]))
+                # Print progress
+                if model.likelihood_cost_form == 'gaussian':
+                    mean, _ = ut.gaussian_parameters(outputs, dim=-1)
+                    mse_val = mse(mean, targets)
+                elif model.likelihood_cost_form == 'mse':
+                    mse_val = NLL_term
+                pbar.set_postfix(loss='{:.2e}'.format(loss[0]), 
+                                 mse='{:.2e}'.format(mse_val))
                 pbar.update(1)
 
                 # Save model
@@ -65,8 +82,8 @@ def train(model, train_data, batch_size, n_batches, device,
                     ut.save_model_by_name(model, i)
 
                 if i % iter_plot == 0:
-                    # if model.input_feat_dim <= 2:
-                    #     test_plot(model, i, kernel)
+                    if model.input_feat_dim <= 2:
+                        ut.test_plot(model, i, kernel)
                     ut.plot_log_loss(model, loss_list, i)
 
                 if i == iter_max:

@@ -18,7 +18,7 @@ class BBBTimeSeriesPredModel(nn.Module):
         n_pred_steps,
         device,
         num_rnn_layers=1,
-        dropout=0.5,
+        dropout=0,
         BBB=True,
         sharpen=False,
         training=True,
@@ -61,6 +61,9 @@ class BBBTimeSeriesPredModel(nn.Module):
         if self.likelihood_cost_form == 'gaussian':
             self.decoder = BBBLinear(self.hidden_feat_dim, self.pred_feat_dim * 2, 
                                  BBB=self.BBB, *args, **kwargs)
+        elif self.likelihood_cost_form == 'mse':
+            self.decoder = BBBLinear(self.hidden_feat_dim, self.pred_feat_dim, 
+                                 BBB=self.BBB, *args, **kwargs)
 
         self.layers = [self.rnn, self.decoder]
 
@@ -82,7 +85,7 @@ class BBBTimeSeriesPredModel(nn.Module):
         zero_pad = torch.zeros(self.n_pred_steps, x.shape[1], self.input_feat_dim)
         return torch.cat((x, zero_pad), dim=0)
 
-    def forward(self, inputs, hidden, targets):
+    def forward(self, inputs, targets=None):
         """
         :param input: [n_input_steps, bsz, inp_dim]
         :return: [n_pred_steps, bsz, inp_dim]
@@ -91,12 +94,13 @@ class BBBTimeSeriesPredModel(nn.Module):
             assert len(inputs) == self.n_input_steps
             # Zero-padding the time-steps to 
             inputs = self.pad_input_sequence(inputs)
-            encoded_outputs, hidden = self.rnn(inputs, hidden)
+            encoded_outputs, _ = self.rnn(inputs)
             outputs = self.decoder(encoded_outputs)
+            # Segment outputs
             outputs = outputs[self.n_input_steps:, :, :]
 
         # Posterior sharpening
-        if self.sharpen and self.training:
+        if self.BBB and self.sharpen and self.training:
             # Compute the data-related loss
             NLL = self.get_nll(outputs, targets)
             gradients = torch.autograd.grad(
@@ -107,20 +111,19 @@ class BBBTimeSeriesPredModel(nn.Module):
                 retain_graph=True, 
                 only_inputs=True)
             # Then do the forward pass again with sharpening:
-            encoded_output, hidden = self.rnn(inputs, hidden, gradients)
+            encoded_output, _ = self.rnn(inputs, grads=gradients)
             outputs = self.decoder(encoded_output)
             if self.task_mode == 'async-many-to-many':     
                 outputs = outputs[self.n_input_steps:, :, :]
 
-        return outputs, hidden
+        return outputs
 
     def get_nll(self, outputs, targets):
         """
         :return: negative log-likelihood of a minibatch
         """
         if self.likelihood_cost_form == 'mse':
-            # This method is problematic
-            # \sum log P(batch | theta) / (bsz * seq_len)
+            # This method is not validated
             return self.loss_fn(outputs, targets)
         elif self.likelihood_cost_form == 'gaussian':
             # return the negative log-probability of target
