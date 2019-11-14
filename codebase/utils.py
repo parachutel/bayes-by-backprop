@@ -210,7 +210,12 @@ def test_plot(model, iter, kernel):
             plt.plot(given_seq[(model.n_input_steps - 1):, 0, 0].numpy(), 
                     given_seq[(model.n_input_steps - 1):, 0, 1].numpy(), label='Ground Truth')
             plt.plot(pred_seq[:, 0, 0].numpy(), 
-                    pred_seq[:, 0, 1].numpy(), label='Prediction')
+                     pred_seq[:, 0, 1].numpy(), label='One Prediction Sample')
+            if model.likelihood_cost_form == 'gaussian':
+                plt.errorbar(mean[:, 0, 0].numpy(), mean[:, 0, 1].numpy(), 
+                    xerr=var.squeeze().sqrt().numpy()[:, 0],
+                    yerr=var.squeeze().sqrt().numpy()[:, 1], 
+                    capsize=2, label='Mean and Std')
             plt.xlabel('x')
             plt.ylabel('y')
 

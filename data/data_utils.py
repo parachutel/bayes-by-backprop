@@ -27,14 +27,14 @@ def sinusoidal_kernel(t, input_feat_dim):
         return np.random.randint(1, 4) * np.sin(t) * np.cos(4 * t) + (t - t[0])
     elif input_feat_dim == 2:
         # # Hard
-        std = np.random.rand() * 2
-        mean = np.random.randint(-3, 4)
-        wave_scale = np.random.randn(2) * std + mean
-        a = [wave_scale[0] * np.sin(np.random.rand() * 2 * t) + (t - t[0]),
-             wave_scale[1] * np.cos(np.random.rand() * 2 * t) + (t - t[0])]
+        # std = np.random.rand() * 2
+        # mean = np.random.randint(-3, 4)
+        # wave_scale = np.random.randn(2) * std + mean
+        # a = [wave_scale[0] * np.sin(np.random.rand() * 2 * t) + (t - t[0]),
+        #      wave_scale[1] * np.cos(np.random.rand() * 2 * t) + (t - t[0])]
         # # Simple:
-        # a = [np.random.randint(1, 4) * np.sin(np.random.rand() * 2 * t) + (t - t[0]),
-        #      np.random.randint(1, 4) * np.cos(np.random.rand() * 2 * t) + (t - t[0])]
+        a = [np.random.randint(1, 4) * np.sin(np.random.rand() * 2 * t) + (t - t[0]),
+             np.random.randint(1, 4) * np.cos(np.random.rand() * 2 * t) + (t - t[0])]
         return np.transpose(np.array(a))
 
 def dummy_data_creator(batch_size, n_batches, input_feat_dim, 

@@ -7,15 +7,13 @@ from codebase.train import train
 import codebase.utils as ut
 import data.data_utils as data_ut
 
-dev_mode = False
-
 # Data
 batch_size = 20
-n_batches = 3000 # used by dummy data
+n_batches = 8000 # used by dummy data
 n_input_steps = 30
 n_pred_steps = 10
-input_feat_dim = 1
-pred_feat_dim = 1
+input_feat_dim = 2
+pred_feat_dim = 2
 dataset_name = 'dummy{}d'.format(input_feat_dim)
 
 # Network
@@ -30,17 +28,19 @@ likelihood_cost_form = 'gaussian'
 nlayers = 1
 dropout = 0
 pi = 0.25
-std1 = np.exp(0) 
-std2 = np.exp(-6) 
+std1 = np.exp(-1)
+std2 = np.exp(-6)
 
 # Train
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-gpu = False if device == torch.device('cpu') else True
+dev_mode = False
 training = True
 lr = 2
 run = 0
-iter_max = 50000
+iter_max = 400000
 iter_plot = 1000
+# # automatic
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+gpu = False if device == torch.device('cpu') else True
 
 # Enforced settings:
 if not BBB:

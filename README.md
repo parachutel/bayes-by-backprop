@@ -41,3 +41,4 @@
 11/13/19
 - problem located in loss re-weighting
 - TODO: @arec extract data and save them as one torch.Tensor with `shape = (full_seq_len, n_tot_sequences, feat_dim)`. Save the tensor using `torch.save(data_tensor, 'data_tensor_name.pt')` (to /data/processed).
+- IDEA: using shared variance for each pred feat dim
