@@ -46,19 +46,18 @@ def train(model, train_data, batch_size, n_batches, device,
                 
                 # # Re-weighting for minibatches
                 # rescale to the mean nll of each sequence?
-                NLL_term = batch_mean_nll * model.n_pred_steps * batch_size
+                NLL_term = batch_mean_nll * model.n_pred_steps
 
-                # KL_term = KL / batch_size / n_batches
                 # KL_term = KL 
                 # KL_term = KL / batch_size
-                KL_term = KL / n_batches
+                # KL_term = KL / n_batches
+                KL_term = KL / n_batches / batch_size
 
                 loss = NLL_term + KL_term
-                # print(NLL_term, KL_term)
 
                 if model.sharpen:
-                    loss += KL_sharp / batch_size
-                    # loss += KL_sharp / n_batches
+                    # loss += KL_sharp / batch_size
+                    loss += KL_sharp / n_batches
 
                 loss_list.append(loss)
 
