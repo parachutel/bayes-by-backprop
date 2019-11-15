@@ -42,3 +42,9 @@
 - problem located in loss re-weighting
 - TODO: @arec extract data and save them as one torch.Tensor with `shape = (full_seq_len, n_tot_sequences, feat_dim)`. Save the tensor using `torch.save(data_tensor, 'data_tensor_name.pt')` (to /data/processed).
 - IDEA: using shared variance for each pred feat dim
+- IDEA: using fixed variance for decoder output?
+
+11/14/19
+- outputting means only, data prob is computed using a constant variance (0.1, as homework 2 does in FSVAE)
+- BBBLSTM was able to learn sinusoidal data pretty good
+- highD data are processed

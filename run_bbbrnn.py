@@ -8,16 +8,16 @@ import codebase.utils as ut
 import data.data_utils as data_ut
 
 # Data
-batch_size = 20
-n_batches = 8000 # used by dummy data
-n_input_steps = 30
+batch_size = 50
+n_batches = 2000 # used by dummy data
+n_input_steps = 40
 n_pred_steps = 10
 input_feat_dim = 2
 pred_feat_dim = 2
 dataset_name = 'dummy{}d'.format(input_feat_dim)
 
 # Network
-hidden_feat_dim = 50
+hidden_feat_dim = 80
 
 # Model
 cell = 'LSTM'
@@ -34,10 +34,12 @@ std2 = np.exp(-6)
 # Train
 dev_mode = False
 training = True
-lr = 2
-run = 0
+clip_grad = 5
+lr = 1e-3
+run = 1
 iter_max = 400000
 iter_plot = 1000
+
 # # automatic
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 gpu = False if device == torch.device('cpu') else True
@@ -52,6 +54,7 @@ if not BBB:
         ('nlayers={:d}', nlayers),
         ('nhid={:d}', hidden_feat_dim),
         ('dropout={:.1f}', dropout),
+        ('clipgrad={}', str(clip_grad)),
         ('loss={:s}', likelihood_cost_form),
         ('run={:d}', run),
     ]
@@ -63,6 +66,7 @@ else:
         ('nlayers={:d}', nlayers),
         ('nhid={:d}', hidden_feat_dim),
         ('dropout={:.1f}', dropout),
+        ('clipgrad={}', str(clip_grad)),
         ('loss={:s}', likelihood_cost_form),
         ('sharpen={:s}', str(sharpen)),
         ('pi={:.2f}', pi),
@@ -110,8 +114,8 @@ model = BBBTimeSeriesPredModel(
 
 train(model, training_set, batch_size, n_batches, device, 
         kernel=data_ut.sinusoidal_kernel,
-        lr=1e-3,
-        clip_grad=5,
+        lr=lr,
+        clip_grad=clip_grad,
         iter_max=iter_max, 
         iter_save=np.inf, 
         iter_plot=iter_plot, 

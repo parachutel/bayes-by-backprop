@@ -49,7 +49,7 @@ class BBBLayer(nn.Module):
                 eps = eps.cuda()
 
             # eps.normal_()
-            g = grads[i].detach()
+            g = grads[i].detach() # detach?
             # Sample fron normal wih posterior sharpening
             h_post_means = (w - eta[i] * g)
             weight = h_post_means + eps * std
@@ -60,7 +60,7 @@ class BBBLayer(nn.Module):
         kl = 0
         for i in range(len(self.sampled_weights)):
             sharp_w = self.sampled_sharpen_weights[i]
-            w = self.sampled_weights[i].detach()
+            w = self.sampled_weights[i].detach() # detach?
             # without constant term
             kl += torch.sum((sharp_w - w).pow(2) / (2 * sigma**2))
 
@@ -75,10 +75,15 @@ class BBBLayer(nn.Module):
         """
         assert len(self.sampled_weights) != 0 # make sure we sample weights
 
+        # log_posterior = ut.log_normal_for_weights(
+        #     weights=self.sampled_weights,
+        #     means=[mean.detach() for mean in self.means],
+        #     logvars=[logvar.detach() for logvar in self.logvars])
+        
         log_posterior = ut.log_normal_for_weights(
             weights=self.sampled_weights,
-            means=[mean.detach() for mean in self.means],
-            logvars=[logvar.detach() for logvar in self.logvars])
+            means=self.means,
+            logvars=self.logvars)
 
         log_prior = ut.log_scale_gaussian_mix_prior(self.sampled_weights, 
                                 pi=self.pi, std1=self.std1, std2=self.std2)

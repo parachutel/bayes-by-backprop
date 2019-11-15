@@ -23,6 +23,7 @@ class BBBTimeSeriesPredModel(nn.Module):
         sharpen=False,
         training=True,
         likelihood_cost_form='gaussian',
+        constant_var=True,
         task_mode='async-many-to-many',
         rnn_cell_type='LSTM',
         name='model',
@@ -46,6 +47,8 @@ class BBBTimeSeriesPredModel(nn.Module):
         self.task_mode = task_mode
         self.rnn_cell_type = rnn_cell_type
         self.likelihood_cost_form = likelihood_cost_form
+        self.constant_var = constant_var
+        self.pred_var = 0.1
         self.mse_fn = nn.MSELoss()
 
         # Build network
@@ -58,8 +61,9 @@ class BBBTimeSeriesPredModel(nn.Module):
                 *args, **kwargs)
         # One Layer Linear decoder:
         if self.likelihood_cost_form == 'gaussian':
-            self.decoder = BBBLinear(self.hidden_feat_dim, self.pred_feat_dim * 2, 
-                                 BBB=self.BBB, *args, **kwargs)
+            dim_scale = 1 if self.constant_var else 2
+            self.decoder = BBBLinear(self.hidden_feat_dim, 
+                self.pred_feat_dim * dim_scale, BBB=self.BBB, *args, **kwargs)
         elif self.likelihood_cost_form == 'mse':
             self.decoder = BBBLinear(self.hidden_feat_dim, self.pred_feat_dim, 
                                  BBB=self.BBB, *args, **kwargs)
@@ -91,11 +95,10 @@ class BBBTimeSeriesPredModel(nn.Module):
         """
         if self.task_mode == 'async-many-to-many':
             assert len(inputs) == self.n_input_steps
-            # Zero-padding the time-steps to 
+            # Zero-padding the time-steps
             inputs = self.pad_input_sequence(inputs)
             encoded_outputs, _ = self.rnn(inputs)
             outputs = self.decoder(encoded_outputs)
-            # Segment outputs
             outputs = outputs[self.n_input_steps:, :, :]
 
         # Posterior sharpening
@@ -125,11 +128,12 @@ class BBBTimeSeriesPredModel(nn.Module):
             # This method is not validated
             return self.mse_fn(outputs, targets)
         elif self.likelihood_cost_form == 'gaussian':
-            # return the mean negative log-probability of target
-            mean, var = ut.gaussian_parameters(outputs, dim=-1)
-            return -torch.mean(ut.log_normal(targets, mean, var))
-            # sampled_pred = ut.sample_gaussian(mean, var)
-            # return self.mse_fn(sampled_pred, targets)
+            if not self.constant_var:
+                mean, var = ut.gaussian_parameters(outputs, dim=-1)
+                return -torch.mean(ut.log_normal(targets, mean, var))
+            else:
+                var = self.pred_var * torch.ones_like(outputs)
+                return -torch.mean(ut.log_normal(targets, outputs, var))
 
     def get_loss(self, output, targets):
         """
@@ -142,12 +146,14 @@ class BBBTimeSeriesPredModel(nn.Module):
         NLL = self.get_nll(output, targets)
 
         # KL: complexity cost
-        KL = torch.zeros(1, device=self.device)
-        KL = Variable(KL)
-
-        for layer in self.layers:
-            if layer.BBB:
-                KL += layer.get_kl()
+        if self.BBB:
+            KL = torch.zeros(1, device=self.device)
+            for layer in self.layers:
+                if layer.BBB:
+                    KL += layer.get_kl()
+            KL = KL.squeeze()
+        else:
+            KL = 0.
 
         if self.sharpen:
             KL_sharp = self.rnn.get_kl_sharpening()

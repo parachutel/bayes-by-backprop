@@ -14,13 +14,6 @@ import matplotlib.pyplot as plt
 def sample_gaussian(m, v):
     """
     Element-wise application reparameterization trick to sample from Gaussian
-
-    Args:
-        m: tensor: (batch, ...): Mean
-        v: tensor: (batch, ...): Variance
-
-    Return:
-        z: tensor: (batch, ...): Samples
     """
     # z = torch.distributions.normal.Normal(m, torch.sqrt(v)).rsample()
     z = m + torch.sqrt(v) * torch.randn_like(v) 
@@ -30,15 +23,6 @@ def gaussian_parameters(h, dim=-1):
     """
     Converts generic real-valued representations into mean and variance
     parameters of a Gaussian distribution
-
-    Args:
-        h: tensor: (batch, ..., dim, ...): Arbitrary tensor
-        dim: int: (): Dimension along which to split the tensor for mean and
-            variance
-
-    Returns:
-        m: tensor: (batch, ..., dim / 2, ...): Mean
-        v: tensor: (batch, ..., dim / 2, ...): Variance
     """
     m, h = torch.split(h, h.size(dim) // 2, dim=dim)
     v = F.softplus(h) + 1e-8
@@ -49,14 +33,6 @@ def log_normal(x, m, v):
     Computes the elem-wise log probability of a Gaussian and then sum over the
     last dim. Basically we're assuming all dims are batch dims except for the
     last dim.
-
-    Args:
-        x: tensor: (batch_1, batch_2, ..., batch_k, dim): Observation
-        m: tensor: (batch_1, batch_2, ..., batch_k, dim): Mean
-        v: tensor: (batch_1, batch_2, ..., batch_k, dim): Variance
-
-    Return:
-        log_prob: scalar: log probability of all the samples.
     """
     log_prob = (-torch.pow(x - m, 2) / v - torch.log(2 * np.pi * v)) / 2
     log_prob = torch.sum(log_prob, dim=-1)
@@ -66,10 +42,6 @@ def log_normal_for_weights(weights, means, logvars):
     """
     weights is from a multivariate gaussian with diagnol variance
     return the loglikelihood.
-    :param weights: a list of weights
-    :param means: a list of means
-    :param logvars: a list of logvars
-    :return ll: loglikelihood sum over list
     """
     ll = 0
 
@@ -130,7 +102,7 @@ def log_scale_gaussian_mix_prior(weights, pi, std1, std2):
         )
         # use a numerical stable one
         # ll1 + log(pi + (1-pi) exp(ll2-ll1))
-        ll += ll1 + ( pi + (1-pi) * ((ll2-ll1).exp()) ).log()
+        ll += ll1 + torch.log(pi + (1 - pi) * (ll2 - ll1).exp())
 
     return ll
 
@@ -140,11 +112,15 @@ def reset_weights(m):
     except AttributeError:
         pass
 
-def save_model_by_name(model, global_step):
+def save_model_by_name(model, global_step, only_latest=False):
     save_dir = os.path.join('checkpoints', model.name)
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
-    file_path = os.path.join(save_dir, 'model-{:05d}.pt'.format(global_step))
+    if only_latest:
+        ckpt_fname = 'model.pt'
+    else:
+        ckpt_fname = 'model-{:05d}.pt'.format(global_step)
+    file_path = os.path.join(save_dir, ckpt_fname)
     state = model.state_dict()
     torch.save(state, file_path)
     print('Saved to {}'.format(file_path))
@@ -176,7 +152,17 @@ def plot_log_loss(model, loss, iter):
     plt.savefig('./logs/{}/loss.png'.format(model.name))
     plt.close()
 
+def evaluate_model(model, val_set):
+    # Option 1: sample the weights of the model multiple times,
+    # and get the mean of the ouput for each evaluation data point
+    # Option 2: do one forward pass using the mean of the weights
+    # return some_metrics
+    pass
+
 def test_plot(model, iter, kernel):
+    """
+        plot sample trajectories
+    """
     import data.data_utils as data_ut
     with torch.no_grad():
         sequence_len = model.n_input_steps + model.n_pred_steps
@@ -188,8 +174,12 @@ def test_plot(model, iter, kernel):
         inputs = given_seq[:model.n_input_steps, :, :]
         outputs = model.forward(inputs)
         if model.likelihood_cost_form == 'gaussian':
-            mean, var = gaussian_parameters(outputs, dim=-1)
-            pred_seq = sample_gaussian(mean, var)
+            if model.constant_var:
+                var = model.pred_var * torch.ones_like(outputs)
+                pred_seq = sample_gaussian(outputs, var)
+            else:
+                mean, var = gaussian_parameters(outputs, dim=-1)
+                pred_seq = sample_gaussian(mean, var)
         elif model.likelihood_cost_form == 'mse':
             pred_seq = outputs
 
@@ -199,9 +189,14 @@ def test_plot(model, iter, kernel):
             plt.plot(t[model.n_input_steps:], pred_seq[:, 0, 0].numpy(), 
                 label='One Prediction Sample')
             if model.likelihood_cost_form == 'gaussian':
-                plt.errorbar(t[model.n_input_steps:], mean.numpy(), 
-                    yerr=var.squeeze().sqrt().numpy(), capsize=2, 
-                    label='Mean and Std')
+                if model.constant_var:
+                    plt.errorbar(t[model.n_input_steps:], outputs.numpy(), 
+                        yerr=var.squeeze().sqrt().numpy(), capsize=2, 
+                        label='Mean and const Std')
+                else:
+                    plt.errorbar(t[model.n_input_steps:], mean.numpy(), 
+                        yerr=var.squeeze().sqrt().numpy(), capsize=2, 
+                        label='Mean and Std')
             plt.xlabel('t')
             plt.ylabel('x')
         elif model.input_feat_dim == 2:
@@ -212,10 +207,16 @@ def test_plot(model, iter, kernel):
             plt.plot(pred_seq[:, 0, 0].numpy(), 
                      pred_seq[:, 0, 1].numpy(), label='One Prediction Sample')
             if model.likelihood_cost_form == 'gaussian':
-                plt.errorbar(mean[:, 0, 0].numpy(), mean[:, 0, 1].numpy(), 
-                    xerr=var.squeeze().sqrt().numpy()[:, 0],
-                    yerr=var.squeeze().sqrt().numpy()[:, 1], 
-                    capsize=2, label='Mean and Std')
+                std = var.squeeze().sqrt().numpy()
+                if model.constant_var:
+                    plt.errorbar(outputs[:, 0, 0].numpy(), outputs[:, 0, 1].numpy(),
+                        xerr=std[:, 0], yerr=std[:, 1], capsize=2, 
+                        label='Mean and const Std')
+                else:
+                    plt.errorbar(mean[:, 0, 0].numpy(), mean[:, 0, 1].numpy(), 
+                        xerr=std[:, 0], yerr=std[:, 1], 
+                        capsize=2, label='Mean and Std')
+            plt.axis('equal')
             plt.xlabel('x')
             plt.ylabel('y')
 
