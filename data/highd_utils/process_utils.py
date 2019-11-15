@@ -105,12 +105,26 @@ def clean_feature(raw, options, feature):
     # center x and y values
     if feature in ['x','y']:
         data = data - data[0]
-        
+    
+    # flip negative x values
+    if feature == 'x' and data[-1] < 0:
+        data = -data
+    
     # replace zeros in dhw and thw
     if feature == 'dhw':
         data[data==0] = 500 # 500m to collision if no car
     if feature == 'thw':
-        data[data==0] = 6 # 6s to collision if no car
+        data[data==0] = 15 # 15s to collision if no car
+        
+    # scale data
+    if feature == 'x':
+        data = data/700
+    elif feature == 'y':
+        data = data/8
+    elif feature == 'dhw':
+        data = data/500
+    elif feature == 'thw':
+        data = data/15
         
     return data
 
