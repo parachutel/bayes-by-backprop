@@ -15,6 +15,13 @@ PROJECT_DIR_PREFIX = '/Users/shengli/Desktop/BBB'
 STOCKS_DATA_DIR = PROJECT_DIR_PREFIX + \
     '/data/raw/price-volume-data-for-all-us-stocks-etfs/Stocks/*.txt'
 
+
+def read_highd_data(fname, batch_size):
+    data_dir = PROJECT_DIR_PREFIX + '/data/processed/{}.pt'.format(fname)
+    data_set = torch.load(data_dir).float()
+    data_set = torch.split(data_set, batch_size, dim=1)
+    return list(data_set)[:-1] # discard last batch
+
 def is_non_zero_file(fpath):  
     return True if os.path.isfile(fpath) and os.path.getsize(fpath) > 0 else False
 

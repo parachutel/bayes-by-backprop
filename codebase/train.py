@@ -4,6 +4,7 @@ from torch import optim
 
 import numpy as np
 import tqdm
+import random
 
 import codebase.utils as ut
 import data.data_utils as data_ut
@@ -30,6 +31,7 @@ def train(model, train_data, batch_size, n_batches, device,
 
     i = 0 # i is num of gradient steps taken by end of loop iteration
     loss_list = []
+    mse_list = []
     with tqdm.tqdm(total=iter_max) as pbar:
         while True:
             for batch in train_data:
@@ -37,7 +39,7 @@ def train(model, train_data, batch_size, n_batches, device,
                 optimizer.zero_grad()
 
                 inputs = batch[:model.n_input_steps, :, :]
-                targets = batch[model.n_input_steps:, :, :]
+                targets = batch[model.n_input_steps:, :, :2]
                 
                 # Since the data is not continued from batch to batch,
                 # reinit hidden every batch. (using zeros)
@@ -64,21 +66,39 @@ def train(model, train_data, batch_size, n_batches, device,
                 if clip_grad is not None:
                     torch.nn.utils.clip_grad_norm_(model.parameters(), clip_grad)
 
-                # loss.backward(retain_graph=True)
-                loss.backward()
-                optimizer.step()
-
                 # Print progress
                 if model.likelihood_cost_form == 'gaussian':
                     if model.constant_var:
-                        var = model.pred_var * torch.ones_like(outputs)
-                        sampled_pred = ut.sample_gaussian(outputs, var)
+                        mse_val = mse(outputs, targets)
                     else:
-                        mean, var = ut.gaussian_parameters(outputs, dim=-1)
-                        sampled_pred = ut.sample_gaussian(mean, var)
-                    mse_val = mse(sampled_pred, targets)
+                        mean, _ = ut.gaussian_parameters(outputs, dim=-1)
+                        mse_val = mse(mean, targets)
                 elif model.likelihood_cost_form == 'mse':
                     mse_val = batch_mean_nll
+                mse_list.append(mse_val)
+
+                if i % iter_plot == 0:
+                    if model.input_feat_dim <= 2:
+                        ut.test_plot(model, i, kernel)
+                    elif model.input_feat_dim == 4:
+                        rand_idx = random.sample(range(batch.shape[1]), 4)
+                        full_true_traj = batch[:, rand_idx, :]
+                        # output = mean, i.e. using constant_var
+                        if not model.BBB:
+                            pred_traj = outputs[:, rand_idx, :]
+                            ut.plot_highd_traj(model, i, full_true_traj, pred_traj)
+                        else:
+                            # resample a few forward passes
+                            ut.plot_highd_traj_BBB(model, i, full_true_traj, 
+                                                    n_resample_weights=10)
+
+                    ut.plot_history(model, loss_list, i, obj='loss')
+                    ut.plot_history(model, mse_list, i, obj='mse')
+
+                
+                # loss.backward(retain_graph=True)
+                loss.backward()
+                optimizer.step()
                 
                 pbar.set_postfix(loss='{:.2e}'.format(loss), 
                                  mse='{:.2e}'.format(mse_val))
@@ -88,11 +108,6 @@ def train(model, train_data, batch_size, n_batches, device,
                 if i % iter_save == 0:
                     ut.save_model_by_name(model, i, only_latest=True)
                     # ut.save_latest_model(model)
-
-                if i % iter_plot == 0:
-                    if model.input_feat_dim <= 2:
-                        ut.test_plot(model, i, kernel)
-                    ut.plot_log_loss(model, loss_list, i)
 
                 if i == iter_max:
                     return

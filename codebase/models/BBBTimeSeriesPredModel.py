@@ -48,7 +48,7 @@ class BBBTimeSeriesPredModel(nn.Module):
         self.rnn_cell_type = rnn_cell_type
         self.likelihood_cost_form = likelihood_cost_form
         self.constant_var = constant_var
-        self.pred_var = 0.1
+        self.pred_var = 0.001 # auxiliary parameter for evaluating prediction prob
         self.mse_fn = nn.MSELoss()
 
         # Build network

@@ -8,16 +8,17 @@ import codebase.utils as ut
 import data.data_utils as data_ut
 
 # Data
-batch_size = 50
-n_batches = 2000 # used by dummy data
-n_input_steps = 40
-n_pred_steps = 10
-input_feat_dim = 2
+batch_size = 30
+n_batches = 2000 # only used by dummy data
+n_input_steps = 50
+n_pred_steps = 20
+input_feat_dim = 4
 pred_feat_dim = 2
-dataset_name = 'dummy{}d'.format(input_feat_dim)
+# dataset_name = 'dummy{}d'.format(input_feat_dim)
+dataset_name = 'highd'
 
 # Network
-hidden_feat_dim = 80
+hidden_feat_dim = 100
 
 # Model
 cell = 'LSTM'
@@ -38,7 +39,7 @@ clip_grad = 5
 lr = 1e-3
 run = 1
 iter_max = 400000
-iter_plot = 1000
+iter_plot = 2000
 
 # # automatic
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -83,14 +84,17 @@ if not dev_mode:
 else:
     iter_plot = np.inf
 
-training_set = data_ut.dummy_data_creator(
-        batch_size=batch_size, 
-        n_batches=n_batches, 
-        input_feat_dim=input_feat_dim,
-        n_input_steps=n_input_steps, 
-        n_pred_steps=n_pred_steps,
-        kernel=data_ut.sinusoidal_kernel,
-        device=device)
+# training_set = data_ut.dummy_data_creator(
+#         batch_size=batch_size, 
+#         n_batches=n_batches, 
+#         input_feat_dim=input_feat_dim,
+#         n_input_steps=n_input_steps, 
+#         n_pred_steps=n_pred_steps,
+#         kernel=data_ut.sinusoidal_kernel,
+#         device=device)
+
+training_set = data_ut.read_highd_data(
+    'highd_processed_tracks01-60_fr05_loc123456_p0.10', batch_size)
 
 model = BBBTimeSeriesPredModel(
         num_rnn_layers=nlayers,

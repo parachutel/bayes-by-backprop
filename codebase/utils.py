@@ -144,12 +144,16 @@ def delete_existing(path):
         print("Deleting existing path: {}".format(path))
         shutil.rmtree(path)
 
-def plot_log_loss(model, loss, iter):
+def plot_history(model, data, iter, obj):
     plt.figure()
-    plt.plot(np.log(loss))
+    plt.plot(data)
+    if obj == 'loss':
+        plt.yscale('symlog')
+    elif obj == 'mse':
+        plt.yscale('log')
     plt.xlabel('iter')
-    plt.ylabel('log-loss')
-    plt.savefig('./logs/{}/loss.png'.format(model.name))
+    plt.ylabel(obj)
+    plt.savefig('./logs/{}/{}.png'.format(model.name, obj))
     plt.close()
 
 def evaluate_model(model, val_set):
@@ -158,6 +162,59 @@ def evaluate_model(model, val_set):
     # Option 2: do one forward pass using the mean of the weights
     # return some_metrics
     pass
+
+def plot_highd_traj_BBB(model, iter, full_true_traj, n_resample_weights=10):
+    with torch.no_grad():
+        inputs = full_true_traj[:model.n_input_steps, :, :].detach()
+
+        for i in range(n_resample_weights):
+            pred = model.forward(inputs) # one output sample
+            if i == 0:
+                pred_list = pred.unsqueeze(-1)
+            else:
+                pred = pred.unsqueeze(-1)
+                pred_list = torch.cat((pred_list, pred), dim=-1)
+        mean_pred = pred_list.mean(dim=-1)
+        std_pred = pred_list.std(dim=-1)
+
+    plot_highd_traj(model, iter, full_true_traj, mean_pred, std_pred=std_pred)
+
+
+
+def plot_highd_traj(model, iter, full_true_traj, pred_traj, std_pred=None):
+    with torch.no_grad():
+        input_true_traj = full_true_traj[:model.n_input_steps, :, :2].detach().numpy()
+        ground_truth = full_true_traj[(model.n_input_steps - 1):, :, :2].detach().numpy()
+        pred_traj = pred_traj.detach().numpy()
+        if std_pred is not None:
+            std_pred = std_pred.detach().numpy()
+        fig, ax = plt.subplots()
+        for i in range(full_true_traj.shape[1]):
+            a, = ax.plot(input_true_traj[:, i, 0], input_true_traj[:, i, 1], 
+                color='blue')
+            b, = ax.plot(ground_truth[:, i, 0], ground_truth[:, i, 1], 
+                color='green')
+            if std_pred is not None:
+                c, = ax.errorbar(pred_traj[:, i, 0], pred_traj[:, i, 1], 
+                    xerr=std_pred[:, i, 0], yerr=std_pred[:, i, 1],
+                    color='red')
+            else:
+                c, = ax.plot(pred_traj[:, i, 0], pred_traj[:, i, 1], 
+                    color='red')
+            if i == 0:
+                a.set_label('Input')
+                b.set_label('Ground Truth')
+                c.set_label('Pred Mean{}'.format(' and Std' if std_pred else ''))
+        plt.axis('equal')
+        plt.xlabel('x')
+        plt.xlim(-0.15, 1.0)
+        plt.ylabel('y')
+        plt.title('iter = {}'.format(iter))
+        # plt.ylim(-1, 1)
+        ax.legend()
+        plt.savefig('./logs/{}/pred_iter={}.png'.format(model.name, iter))
+        plt.close()
+
 
 def test_plot(model, iter, kernel):
     """
