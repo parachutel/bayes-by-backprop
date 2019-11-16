@@ -9,7 +9,7 @@ import random
 import codebase.utils as ut
 import data.data_utils as data_ut
 
-def train(model, train_data, batch_size, n_batches, device, 
+def train(model, train_data, batch_size, n_batches, 
             lr=1e-3,
             clip_grad=None,
             iter_max=np.inf, 

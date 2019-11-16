@@ -85,7 +85,8 @@ class BBBTimeSeriesPredModel(nn.Module):
         """
         :param x: [n_input_steps, bsz, inp_dim]
         """
-        zero_pad = torch.zeros(self.n_pred_steps, x.shape[1], self.input_feat_dim)
+        zero_pad = torch.zeros(self.n_pred_steps, x.shape[1], 
+            self.input_feat_dim).to(self.device)
         return torch.cat((x, zero_pad), dim=0)
 
     def forward(self, inputs, targets=None):

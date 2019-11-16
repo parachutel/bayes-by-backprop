@@ -47,8 +47,6 @@ class BBBLayer(nn.Module):
             eps = torch.randn_like(w)
             if self.gpu:
                 eps = eps.cuda()
-
-            # eps.normal_()
             g = grads[i].detach() # detach?
             # Sample fron normal wih posterior sharpening
             h_post_means = (w - eta[i] * g)

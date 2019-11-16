@@ -109,6 +109,35 @@ class BBBRNN(BBBLayer):
 
         self.reset_parameters()
 
+    def flatten_parameters(self):
+        """Resets parameter data pointer so that they can use faster code paths.
+
+        Right now, this works only if the module is on the GPU and cuDNN is enabled.
+        Otherwise, it's a no-op.
+        """
+        any_param = next(self.parameters()).data
+        if not any_param.is_cuda or not torch.backends.cudnn.is_acceptable(any_param):
+            return
+
+        all_weights = self.all_weights
+        unique_data_ptrs = set(p.data_ptr() for p in all_weights)
+        if len(unique_data_ptrs) != len(all_weights):
+            return
+
+        with torch.cuda.device_of(any_param):
+            import torch.backends.cudnn.rnn as rnn
+
+            # NB: This is a temporary hack while we still don't have Tensor
+            # bindings for ATen functions
+            with torch.no_grad():
+                # NB: this is an INPLACE function on all_weights, that's why the
+                # no_grad() is necessary.
+                torch._cudnn_rnn_flatten_weight(
+                    all_weights, (4 if self.bias else 2),
+                    self.input_size, rnn.get_cudnn_mode(self.mode), 
+                    self.hidden_size, self.num_layers,
+                    self.batch_first, bool(self.bidirectional))
+
 
     def reset_parameters(self):
         """
@@ -180,6 +209,7 @@ class BBBRNN(BBBLayer):
             else:
                 hx = zeros
 
+        self.flatten_parameters()
         if batch_sizes is None:
             result = nn._VF.lstm(input, hx, self.all_weights, self.bias, 
                 self.num_layers, self.dropout, self.training, 

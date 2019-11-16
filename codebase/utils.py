@@ -16,7 +16,7 @@ def sample_gaussian(m, v):
     Element-wise application reparameterization trick to sample from Gaussian
     """
     # z = torch.distributions.normal.Normal(m, torch.sqrt(v)).rsample()
-    z = m + torch.sqrt(v) * torch.randn_like(v) 
+    z = m + torch.sqrt(v) * torch.randn_like(v)
     return z
 
 def gaussian_parameters(h, dim=-1):
@@ -195,16 +195,17 @@ def plot_highd_traj(model, iter, full_true_traj, pred_traj, std_pred=None):
             b, = ax.plot(ground_truth[:, i, 0], ground_truth[:, i, 1], 
                 color='green')
             if std_pred is not None:
-                c, = ax.errorbar(pred_traj[:, i, 0], pred_traj[:, i, 1], 
+                c = ax.errorbar(pred_traj[:, i, 0], pred_traj[:, i, 1], 
                     xerr=std_pred[:, i, 0], yerr=std_pred[:, i, 1],
-                    color='red')
+                    color='red', capsize=2)
             else:
                 c, = ax.plot(pred_traj[:, i, 0], pred_traj[:, i, 1], 
                     color='red')
             if i == 0:
                 a.set_label('Input')
                 b.set_label('Ground Truth')
-                c.set_label('Pred Mean{}'.format(' and Std' if std_pred else ''))
+                c.set_label('Pred Mean{}'.format(
+                    ' and Std' if std_pred is not None else ''))
         plt.axis('equal')
         plt.xlabel('x')
         plt.xlim(-0.15, 1.0)

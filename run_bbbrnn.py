@@ -37,7 +37,7 @@ dev_mode = False
 training = True
 clip_grad = 5
 lr = 1e-3
-run = 1
+run = 2
 iter_max = 400000
 iter_plot = 2000
 
@@ -94,7 +94,8 @@ else:
 #         device=device)
 
 training_set = data_ut.read_highd_data(
-    'highd_processed_tracks01-60_fr05_loc123456_p0.10', batch_size)
+    'highd_processed_tracks01-60_fr05_loc123456_p0.10', 
+    batch_size, device)
 
 model = BBBTimeSeriesPredModel(
         num_rnn_layers=nlayers,
@@ -116,7 +117,7 @@ model = BBBTimeSeriesPredModel(
         name=model_name,
         device=device).to(device)
 
-train(model, training_set, batch_size, n_batches, device, 
+train(model, training_set, batch_size, n_batches, 
         kernel=data_ut.sinusoidal_kernel,
         lr=lr,
         clip_grad=clip_grad,

@@ -16,9 +16,9 @@ STOCKS_DATA_DIR = PROJECT_DIR_PREFIX + \
     '/data/raw/price-volume-data-for-all-us-stocks-etfs/Stocks/*.txt'
 
 
-def read_highd_data(fname, batch_size):
+def read_highd_data(fname, batch_size, device):
     data_dir = PROJECT_DIR_PREFIX + '/data/processed/{}.pt'.format(fname)
-    data_set = torch.load(data_dir).float()
+    data_set = torch.load(data_dir).float().to(device)
     data_set = torch.split(data_set, batch_size, dim=1)
     return list(data_set)[:-1] # discard last batch
 
