@@ -1,7 +1,6 @@
 import os
 import sys
 import numpy as np
-import torch
 
 from highd_utils.process_utils import *
 
@@ -13,10 +12,10 @@ options['min_track'] = 1 # min number to load
 options['max_track'] = 60 # max number to load
 options['min_track_length'] = 200 # min track frame length
 options['max_track_length'] = 350 # max track frame length (will truncate beginning of trajectory)
-options['p_keep_straight'] = 0.0 # Probability to keep a straight car (0.0 = lane changes only, 1.0 = full dataset)
+options['p_keep_straight'] = 0.3 # Probability to keep a straight car (0.0 = lane changes only, 1.0 = full dataset)
 options['frame_rate'] = 5 # Keep every nth frame. Note recorded frame rate is 25 Hz
 options['locations'] = [1,2,3,4,5,6]
-options['features'] = ['x','y','dhw','thw']
+options['features'] = ['x','y','dhw','thw'] # selected input features
 
 # fixed options
 options['randseed'] = 1

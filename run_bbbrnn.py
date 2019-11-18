@@ -22,7 +22,7 @@ hidden_feat_dim = 100
 
 # Model
 cell = 'LSTM'
-BBB = True
+BBB = False
 sharpen = False
 likelihood_cost_form = 'gaussian'
 # likelihood_cost_form = 'mse'
@@ -77,7 +77,7 @@ else:
     ]
 
 model_name = '_'.join([t.format(v) for (t, v) in layout])
-print(model_name)
+print(model_name, '\n')
 
 if not dev_mode:
     ut.prepare_dirs(model_name, overwrite_existing=True)
@@ -94,7 +94,7 @@ else:
 #         device=device)
 
 training_set = data_ut.read_highd_data(
-    'highd_processed_tracks01-60_fr05_loc123456_p0.10', 
+    'highd_processed_tracks01-60_fr05_loc123456_p0.30', 
     batch_size, device)
 
 model = BBBTimeSeriesPredModel(

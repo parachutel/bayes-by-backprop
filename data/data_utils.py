@@ -19,7 +19,10 @@ STOCKS_DATA_DIR = PROJECT_DIR_PREFIX + \
 def read_highd_data(fname, batch_size, device):
     data_dir = PROJECT_DIR_PREFIX + '/data/processed/{}.pt'.format(fname)
     data_set = torch.load(data_dir).float().to(device)
+    print('\nLoading HighD dataset with seq_len = {} and batch_size = {}'.format(
+        data_set.shape[0], batch_size))
     data_set = torch.split(data_set, batch_size, dim=1)
+    print('Number of batches = {}\n'.format(len(data_set)))
     return list(data_set)[:-1] # discard last batch
 
 def is_non_zero_file(fpath):  

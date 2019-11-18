@@ -52,8 +52,8 @@ def train(model, train_data, batch_size, n_batches,
 
                 # KL_term = KL 
                 # KL_term = KL / batch_size
-                # KL_term = KL / n_batches
-                KL_term = KL / n_batches / batch_size
+                KL_term = KL / n_batches
+                # KL_term = KL / n_batches / batch_size
 
                 loss = NLL_term + KL_term
 

@@ -2,6 +2,7 @@ import os
 import sys
 import numpy as np
 import torch
+import tqdm
 
 from highd_utils.read_csv import *
 
@@ -141,15 +142,17 @@ def combine_data(all_tracks, options):
         data[feature] = np.zeros((0,options['max_track_length']))
     
     # iterate over all tracks and recordings, add data to numpy array
-    for rec in all_tracks.keys():
-        for car in all_tracks[rec]:
-            for feature in options['features']:
-                
-                # clean feature (fix length, fix zeros, subtract initial points)
-                cleaned = clean_feature(car[feature], options, feature)
-                
-                # add to data vector
-                data[feature] = np.vstack((data[feature], cleaned))
+    with tqdm.tqdm(total=len(all_tracks.keys())) as pbar:
+        for rec in all_tracks.keys():
+            for car in all_tracks[rec]:
+                for feature in options['features']:
+                    
+                    # clean feature (fix length, fix zeros, subtract initial points)
+                    cleaned = clean_feature(car[feature], options, feature)
+                    
+                    # add to data vector
+                    data[feature] = np.vstack((data[feature], cleaned))
+            pbar.update(1)
     return data
 
 def feature_dict_to_tensor(feature_dict, options):
