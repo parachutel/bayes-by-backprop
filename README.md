@@ -1,3 +1,5 @@
+A course project for CS236 Deep Generative Models at Stanford (Fall 2019). Under development.
+
 # Dev Logs
 
 11/07/19
