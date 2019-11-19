@@ -69,12 +69,13 @@ def train(model, train_data, batch_size, n_batches,
                 # Print progress
                 if model.likelihood_cost_form == 'gaussian':
                     if model.constant_var:
-                        mse_val = mse(outputs, targets)
+                        mse_val = mse(outputs, targets) * model.n_pred_steps
                     else:
                         mean, _ = ut.gaussian_parameters(outputs, dim=-1)
-                        mse_val = mse(mean, targets)
+                        mse_val = mse(mean, targets) * model.n_pred_steps
                 elif model.likelihood_cost_form == 'mse':
-                    mse_val = batch_mean_nll
+                    mse_val = batch_mean_nll * model.n_pred_steps
+                    
                 mse_list.append(mse_val)
 
                 if i % iter_plot == 0:
