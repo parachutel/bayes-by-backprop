@@ -32,11 +32,13 @@ def gaussian_parameters(h, dim=-1):
     Converts generic real-valued representations into mean and variance
     parameters of a Gaussian distribution
     """
+    # m.shape = (full_seq_len, n_sequences, feat_dim)
     m, h = torch.split(h, h.size(dim) - 1, dim=dim)
+    assert h.shape[-1] == 1 # using single var
     v = F.softplus(h) + 1e-8
-    # Construct linearly increasing var through time steps
-    scale = torch.tensor(np.linspace(1e-8, 1, m.shape[1]), dtype=m.dtype)
-    v = (v.transpose(1, 2) * scale).transpose(1, 2).repeat(1, 1, m.shape[-1])
+    # Construct linearly increasing var through seq_len
+    _scale = torch.tensor(np.linspace(1 / m.shape[0], 1, m.shape[0]), dtype=m.dtype)
+    v = (v.transpose(0, -1) * _scale).transpose(0, -1).repeat(1, 1, m.shape[-1])
     assert m.shape == v.shape
     return m, v
 

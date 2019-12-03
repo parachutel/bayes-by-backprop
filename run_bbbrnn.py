@@ -7,12 +7,10 @@ from codebase.train import train
 import codebase.utils as ut
 import data.data_utils as data_ut
 
-# Data
-n_batches = 2000 # only used by dummy data
 
 parser = argparse.ArgumentParser()
+# Data
 parser.add_argument('--dataset_name', type=str, default='highd')
-# dataset_name = 'dummy{}d'.format(input_feat_dim)
 parser.add_argument('--batch_size', type=int, default=30)
 parser.add_argument('--n_input_steps', type=int, default=50)
 parser.add_argument('--n_pred_steps', type=int, default=20)
@@ -26,14 +24,11 @@ parser.add_argument('--constant_var', action='store_true')
 parser.add_argument('--BBB', action='store_true')
 parser.add_argument('--sharpen', action='store_true')
 parser.add_argument('--likelihood_cost_form', type=str, default='gaussian')
-# likelihood_cost_form = 'mse'
 parser.add_argument('--nlayers', type=int, default=1)
 parser.add_argument('--dropout', type=float, default=0)
 parser.add_argument('--pi', type=float, default=0.25)
 parser.add_argument('--logstd1', type=int, default=-1)
 parser.add_argument('--logstd2', type=int, default=-6)
-
-
 # Train
 parser.add_argument('--dev_mode', action='store_true')
 parser.add_argument('--training', action='store_true')
@@ -62,6 +57,7 @@ if not args.BBB:
         ('data={:s}', args.dataset_name),
         ('nlayers={:d}', args.nlayers),
         ('nhid={:d}', args.hidden_feat_dim),
+        ('const_var={}', args.constant_var),
         ('dropout={:.1f}', args.dropout),
         ('clipgrad={}', str(args.clip_grad)),
         ('loss={:s}', args.likelihood_cost_form),
@@ -74,6 +70,7 @@ else:
         ('data={:s}', args.dataset_name),
         ('nlayers={:d}', args.nlayers),
         ('nhid={:d}', args.hidden_feat_dim),
+        ('const_var={}', args.constant_var),
         ('dropout={:.1f}', args.dropout),
         ('clipgrad={}', str(args.clip_grad)),
         ('loss={:s}', args.likelihood_cost_form),
@@ -92,6 +89,8 @@ if not args.dev_mode:
 else:
     args.iter_plot = np.inf
 
+# dataset_name = 'dummy{}d'.format(input_feat_dim)
+# n_batches = 2000 # only used by dummy data
 # training_set = data_ut.dummy_data_creator(
 #         batch_size=batch_size, 
 #         n_batches=n_batches, 
