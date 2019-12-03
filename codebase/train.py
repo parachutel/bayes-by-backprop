@@ -73,6 +73,7 @@ def train(model, train_data, batch_size, n_batches,
                     else:
                         mean, _ = ut.gaussian_parameters(outputs, dim=-1)
                         mse_val = mse(mean, targets) * model.n_pred_steps
+
                 elif model.likelihood_cost_form == 'mse':
                     mse_val = batch_mean_nll * model.n_pred_steps
                     
@@ -83,6 +84,7 @@ def train(model, train_data, batch_size, n_batches,
                         model.eval()
                         if model.input_feat_dim <= 2:
                             ut.test_plot(model, i, kernel)
+
                         elif model.input_feat_dim == 4:
                             rand_idx = random.sample(range(batch.shape[1]), 4)
                             full_true_traj = batch[:, rand_idx, :]
@@ -111,7 +113,6 @@ def train(model, train_data, batch_size, n_batches,
                 # Save model
                 if i % iter_save == 0:
                     ut.save_model_by_name(model, i, only_latest=True)
-                    # ut.save_latest_model(model)
 
                 if i == iter_max:
                     return

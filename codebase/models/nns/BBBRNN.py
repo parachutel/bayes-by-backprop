@@ -181,14 +181,12 @@ class BBBRNN(BBBLayer):
         if grads is not None:
             self.resample_with_sharpening(grads, self.eta)
             weights = self.sampled_sharpen_weights
-        elif self.training and self.BBB is True:
+        elif self.BBB:
             self.sample()
             weights = self.sampled_weights
-        else:
-            # Sample weights in plot eval
-            self.sample()
-            weights = self.sampled_weights
-            # weights = self.means
+        elif not self.BBB:
+            # regular RNN
+            weights = self.means
 
         # modify weights to pytorch format
         self.all_weights = self.get_all_weights(weights)

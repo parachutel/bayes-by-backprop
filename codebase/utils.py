@@ -32,8 +32,12 @@ def gaussian_parameters(h, dim=-1):
     Converts generic real-valued representations into mean and variance
     parameters of a Gaussian distribution
     """
-    m, h = torch.split(h, h.size(dim) // 2, dim=dim)
+    m, h = torch.split(h, h.size(dim) - 1, dim=dim)
     v = F.softplus(h) + 1e-8
+    # Construct linearly increasing var through time steps
+    scale = torch.tensor(np.linspace(1e-8, 1, m.shape[1]), dtype=m.dtype)
+    v = (v.transpose(1, 2) * scale).transpose(1, 2).repeat(1, 1, m.shape[-1])
+    assert m.shape == v.shape
     return m, v
 
 def log_normal(x, m, v):
