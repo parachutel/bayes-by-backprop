@@ -37,7 +37,8 @@ def gaussian_parameters(h, dim=-1):
     assert h.shape[-1] == 1 # using single var
     v = F.softplus(h) + 1e-8
     # Construct linearly increasing var through seq_len
-    _scale = torch.tensor(np.linspace(1 / m.shape[0], 1, m.shape[0]), dtype=m.dtype)
+    _scale = torch.tensor(np.linspace(1 / m.shape[0], 1, m.shape[0]), 
+                            dtype=m.dtype, device=m.device)
     v = (v.transpose(0, -1) * _scale).transpose(0, -1).repeat(1, 1, m.shape[-1])
     assert m.shape == v.shape
     return m, v
