@@ -183,11 +183,11 @@ def plot_highd_traj_BBB(model, iter, full_true_traj, n_resample_weights=10):
 
 def plot_highd_traj(model, iter, full_true_traj, pred_traj, std_pred=None):
     with torch.no_grad():
-        input_true_traj = full_true_traj[:model.n_input_steps, :, :2].detach().numpy()
-        ground_truth = full_true_traj[(model.n_input_steps - 1):, :, :2].detach().numpy()
-        pred_traj = pred_traj.detach().numpy()
+        input_true_traj = full_true_traj[:model.n_input_steps, :, :2].cpu().detach().numpy()
+        ground_truth = full_true_traj[(model.n_input_steps - 1):, :, :2].cpu().detach().numpy()
+        pred_traj = pred_traj.cpu().detach().numpy()
         if std_pred is not None:
-            std_pred = std_pred.detach().numpy()
+            std_pred = std_pred.cpu().detach().numpy()
         fig, ax = plt.subplots()
         for i in range(full_true_traj.shape[1]):
             a, = ax.plot(input_true_traj[:, i, 0], input_true_traj[:, i, 1], 
