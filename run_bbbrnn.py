@@ -22,8 +22,8 @@ hidden_feat_dim = 100
 
 # Model
 cell = 'LSTM'
-BBB = False
-sharpen = False
+BBB = True
+sharpen = True
 likelihood_cost_form = 'gaussian'
 # likelihood_cost_form = 'mse'
 nlayers = 1
@@ -33,11 +33,11 @@ std1 = np.exp(-1)
 std2 = np.exp(-6)
 
 # Train
-dev_mode = False
+dev_mode = True
 training = True
 clip_grad = 5
 lr = 1e-3
-run = 2
+run = 0
 iter_max = 400000
 iter_plot = 2000
 

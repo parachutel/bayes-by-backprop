@@ -43,15 +43,15 @@ class BBBLayer(nn.Module):
         self.h_post_means = []
         for i in range(len(self.sampled_weights)):
             w = self.sampled_weights[i]
-            # Random number
+            # Random number for reparam
             eps = torch.randn_like(w)
             if self.gpu:
                 eps = eps.cuda()
-            g = grads[i].detach() # detach?
-            # Sample fron normal wih posterior sharpening
-            h_post_means = (w - eta[i] * g)
-            weight = h_post_means + eps * std
-            self.h_post_means.append(h_post_means)
+            g_phi = grads[i].detach() # detach?
+            # Sample fron normal with posterior sharpening
+            w_post_means = w - eta[i] * g_phi
+            weight = w_post_means + eps * std
+            self.h_post_means.append(w_post_means)
             self.sampled_sharpen_weights.append(weight)
 
     def get_kl_sharpening(self, sigma=0.02):

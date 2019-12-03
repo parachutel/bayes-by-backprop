@@ -50,16 +50,14 @@ def train(model, train_data, batch_size, n_batches,
                 # # Re-weighting for minibatches
                 NLL_term = batch_mean_nll * model.n_pred_steps
 
-                # KL_term = KL 
-                # KL_term = KL / batch_size
+                # Here B = n_batchs, C = 1 (since each sequence is complete)
                 KL_term = KL / n_batches
-                # KL_term = KL / n_batches / batch_size
 
                 loss = NLL_term + KL_term
 
                 if model.sharpen:
-                    # loss += KL_sharp / batch_size
-                    loss += KL_sharp / n_batches
+                    KL_sharp /= n_batches
+                    loss += KL_sharp
 
                 loss_list.append(loss)
 
@@ -79,22 +77,25 @@ def train(model, train_data, batch_size, n_batches,
                 mse_list.append(mse_val)
 
                 if i % iter_plot == 0:
-                    if model.input_feat_dim <= 2:
-                        ut.test_plot(model, i, kernel)
-                    elif model.input_feat_dim == 4:
-                        rand_idx = random.sample(range(batch.shape[1]), 4)
-                        full_true_traj = batch[:, rand_idx, :]
-                        # output = mean, i.e. using constant_var
-                        if not model.BBB:
-                            pred_traj = outputs[:, rand_idx, :]
-                            ut.plot_highd_traj(model, i, full_true_traj, pred_traj)
-                        else:
-                            # resample a few forward passes
-                            ut.plot_highd_traj_BBB(model, i, full_true_traj, 
-                                                    n_resample_weights=10)
-
-                    ut.plot_history(model, loss_list, i, obj='loss')
-                    ut.plot_history(model, mse_list, i, obj='mse')
+                    with torch.no_grad():
+                        model.eval()
+                        if model.input_feat_dim <= 2:
+                            ut.test_plot(model, i, kernel)
+                        elif model.input_feat_dim == 4:
+                            rand_idx = random.sample(range(batch.shape[1]), 4)
+                            full_true_traj = batch[:, rand_idx, :]
+                            # output = mean, i.e. using constant_var
+                            if not model.BBB:
+                                pred_traj = outputs[:, rand_idx, :]
+                                ut.plot_highd_traj(model, i, full_true_traj, pred_traj)
+                            else:
+                                # resample a few forward passes
+                                ut.plot_highd_traj_BBB(model, i, full_true_traj, 
+                                                        n_resample_weights=10)
+    
+                        ut.plot_history(model, loss_list, i, obj='loss')
+                        ut.plot_history(model, mse_list, i, obj='mse')
+                        model.train()
 
                 
                 # loss.backward(retain_graph=True)

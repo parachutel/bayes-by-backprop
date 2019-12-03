@@ -185,7 +185,10 @@ class BBBRNN(BBBLayer):
             self.sample()
             weights = self.sampled_weights
         else:
-            weights = self.means
+            # Sample weights in plot eval
+            self.sample()
+            weights = self.sampled_weights
+            # weights = self.means
 
         # modify weights to pytorch format
         self.all_weights = self.get_all_weights(weights)
