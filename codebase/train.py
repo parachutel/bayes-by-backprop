@@ -71,7 +71,7 @@ def train(model, train_data, batch_size, n_batches,
                     if model.constant_var:
                         mse_val = mse(outputs, targets) * model.n_pred_steps
                     else:
-                        mean, _ = ut.gaussian_parameters(outputs, dim=-1)
+                        mean, var = ut.gaussian_parameters(outputs, dim=-1)
                         mse_val = mse(mean, targets) * model.n_pred_steps
 
                 elif model.likelihood_cost_form == 'mse':
@@ -88,10 +88,13 @@ def train(model, train_data, batch_size, n_batches,
                         elif model.input_feat_dim == 4:
                             rand_idx = random.sample(range(batch.shape[1]), 4)
                             full_true_traj = batch[:, rand_idx, :]
-                            # output = mean, i.e. using constant_var
                             if not model.BBB:
-                                pred_traj = outputs[:, rand_idx, :]
-                                ut.plot_highd_traj(model, i, full_true_traj, pred_traj)
+                                if model.constant_var:
+                                    pred_traj = outputs[:, rand_idx, :]
+                                else:
+                                    pred_traj = mean[:, rand_idx, :]
+                                ut.plot_highd_traj(model, i, full_true_traj, 
+                                    pred_traj, std_pred=var.sqrt())
                             else:
                                 # resample a few forward passes
                                 ut.plot_highd_traj_BBB(model, i, full_true_traj, 

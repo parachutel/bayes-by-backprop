@@ -183,6 +183,7 @@ def plot_highd_traj_BBB(model, iter, full_true_traj, n_resample_weights=10):
         inputs = full_true_traj[:model.n_input_steps, :, :].detach()
 
         for i in range(n_resample_weights):
+            # not using sharpening
             pred = model.forward(inputs) # one output sample
             if i == 0:
                 pred_list = pred.unsqueeze(-1)
@@ -198,8 +199,10 @@ def plot_highd_traj_BBB(model, iter, full_true_traj, n_resample_weights=10):
 
 def plot_highd_traj(model, iter, full_true_traj, pred_traj, std_pred=None):
     with torch.no_grad():
-        input_true_traj = full_true_traj[:model.n_input_steps, :, :2].cpu().detach().numpy()
-        ground_truth = full_true_traj[(model.n_input_steps - 1):, :, :2].cpu().detach().numpy()
+        input_true_traj = \
+            full_true_traj[:model.n_input_steps, :, :2].cpu().detach().numpy()
+        ground_truth = \
+            full_true_traj[(model.n_input_steps - 1):, :, :2].cpu().detach().numpy()
         pred_traj = pred_traj.cpu().detach().numpy()
         if std_pred is not None:
             std_pred = std_pred.cpu().detach().numpy()
@@ -276,7 +279,8 @@ def test_plot(model, iter, kernel):
             plt.plot(given_seq[:model.n_input_steps, 0, 0].numpy(), 
                     given_seq[:model.n_input_steps, 0, 1].numpy(), label='Input')
             plt.plot(given_seq[(model.n_input_steps - 1):, 0, 0].numpy(), 
-                    given_seq[(model.n_input_steps - 1):, 0, 1].numpy(), label='Ground Truth')
+                    given_seq[(model.n_input_steps - 1):, 0, 1].numpy(), 
+                    label='Ground Truth')
             plt.plot(pred_seq[:, 0, 0].numpy(), 
                      pred_seq[:, 0, 1].numpy(), label='One Prediction Sample')
             if model.likelihood_cost_form == 'gaussian':
