@@ -35,13 +35,14 @@ std1 = np.exp(-1)
 std2 = np.exp(-6)
 
 # Train
-dev_mode = True
+dev_mode = False
 training = True
 clip_grad = 5
 lr = 1e-3
 run = 0
 iter_max = 400000
 iter_plot = 2000
+iter_save = 2000
 
 # # automatic
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -124,7 +125,7 @@ train(model, training_set, batch_size, n_batches,
         lr=lr,
         clip_grad=clip_grad,
         iter_max=iter_max, 
-        iter_save=np.inf, 
+        iter_save=iter_save, 
         iter_plot=iter_plot, 
         reinitialize=False)
 
