@@ -11,6 +11,14 @@ import scipy.stats
 import numpy as np
 import matplotlib.pyplot as plt
 
+def repackage_hidden(h):
+    """Wraps hidden states in new Tensors, to detach them from their history."""
+
+    if isinstance(h, torch.Tensor):
+        return h.detach()
+    else:
+        return tuple(repackage_hidden(v) for v in h)
+
 def sample_gaussian(m, v):
     """
     Element-wise application reparameterization trick to sample from Gaussian

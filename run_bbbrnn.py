@@ -22,6 +22,7 @@ parser.add_argument('--pred_feat_dim', type=int, default=2)
 parser.add_argument('--hidden_feat_dim', type=int, default=100)
 # Model
 parser.add_argument('--cell', type=str, default='LSTM')
+parser.add_argument('--constant_var', action='store_true')
 parser.add_argument('--BBB', action='store_true')
 parser.add_argument('--sharpen', action='store_true')
 parser.add_argument('--likelihood_cost_form', type=str, default='gaussian')
@@ -121,6 +122,7 @@ model = BBBTimeSeriesPredModel(
         hidden_feat_dim=args.hidden_feat_dim,
         n_input_steps=args.n_input_steps,
         n_pred_steps=args.n_pred_steps,
+        constant_var=args.constant_var,
         rnn_cell_type=args.cell,
         name=model_name,
         device=device).to(device)

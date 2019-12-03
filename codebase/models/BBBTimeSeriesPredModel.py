@@ -61,9 +61,13 @@ class BBBTimeSeriesPredModel(nn.Module):
                 *args, **kwargs)
         # One Layer Linear decoder:
         if self.likelihood_cost_form == 'gaussian':
-            dim_scale = 1 if self.constant_var else 2
-            self.decoder = BBBLinear(self.hidden_feat_dim, 
-                self.pred_feat_dim * dim_scale, BBB=self.BBB, *args, **kwargs)
+            if self.constant_var:
+                self.decoder = BBBLinear(self.hidden_feat_dim, 
+                    self.pred_feat_dim, BBB=self.BBB, *args, **kwargs)
+            else:
+                # output the final step var, assuming linear increasing var
+                self.decoder = BBBLinear(self.hidden_feat_dim, 
+                    self.pred_feat_dim + 1, BBB=self.BBB, *args, **kwargs)
         elif self.likelihood_cost_form == 'mse':
             self.decoder = BBBLinear(self.hidden_feat_dim, self.pred_feat_dim, 
                                  BBB=self.BBB, *args, **kwargs)

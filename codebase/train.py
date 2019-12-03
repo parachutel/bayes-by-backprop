@@ -5,6 +5,7 @@ from torch import optim
 import numpy as np
 import tqdm
 import random
+# import psutil
 
 import codebase.utils as ut
 import data.data_utils as data_ut
@@ -36,6 +37,7 @@ def train(model, train_data, batch_size, n_batches,
         while True:
             for batch in train_data:
                 i += 1 
+                # print(psutil.virtual_memory())
                 optimizer.zero_grad()
 
                 inputs = batch[:model.n_input_steps, :, :]
@@ -59,7 +61,7 @@ def train(model, train_data, batch_size, n_batches,
                     KL_sharp /= n_batches
                     loss += KL_sharp
 
-                loss_list.append(loss)
+                loss_list.append(loss.cpu().detach())
 
                 if clip_grad is not None:
                     torch.nn.utils.clip_grad_norm_(model.parameters(), clip_grad)
@@ -74,7 +76,7 @@ def train(model, train_data, batch_size, n_batches,
                 elif model.likelihood_cost_form == 'mse':
                     mse_val = batch_mean_nll * model.n_pred_steps
                     
-                mse_list.append(mse_val)
+                mse_list.append(mse_val.cpu().detach())
 
                 if i % iter_plot == 0:
                     with torch.no_grad():
