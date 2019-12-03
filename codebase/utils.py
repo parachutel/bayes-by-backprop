@@ -117,7 +117,7 @@ def save_model_by_name(model, global_step, only_latest=False):
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
     if only_latest:
-        ckpt_fname = 'model.pt'
+        ckpt_fname = 'model_final.pt'
     else:
         ckpt_fname = 'model-{:05d}.pt'.format(global_step)
     file_path = os.path.join(save_dir, ckpt_fname)

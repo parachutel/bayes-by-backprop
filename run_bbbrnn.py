@@ -10,10 +10,12 @@ import data.data_utils as data_ut
 # Data
 batch_size = 30
 n_batches = 2000 # only used by dummy data
+
 n_input_steps = 50
 n_pred_steps = 20
 input_feat_dim = 4
 pred_feat_dim = 2
+
 # dataset_name = 'dummy{}d'.format(input_feat_dim)
 dataset_name = 'highd'
 

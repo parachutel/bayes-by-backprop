@@ -11,7 +11,8 @@ import torch
 from torchvision import datasets, transforms
 
 # Path constant vars:
-PROJECT_DIR_PREFIX = '/Users/shengli/Desktop/BBB'
+CFP = os.path.dirname(os.path.abspath(__file__))
+PROJECT_DIR_PREFIX = CFP + '/..'
 STOCKS_DATA_DIR = PROJECT_DIR_PREFIX + \
     '/data/raw/price-volume-data-for-all-us-stocks-etfs/Stocks/*.txt'
 
