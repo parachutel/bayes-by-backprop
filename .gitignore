@@ -9,6 +9,7 @@
 *.zip
 *.png
 *.pptx
+*.sh
 
 checkpoints
 logs
