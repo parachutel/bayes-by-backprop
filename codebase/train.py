@@ -91,10 +91,13 @@ def train(model, train_data, batch_size, n_batches,
                             if not model.BBB:
                                 if model.constant_var:
                                     pred_traj = outputs[:, rand_idx, :]
+                                    std_pred = None
                                 else:
                                     pred_traj = mean[:, rand_idx, :]
+                                    std_pred = var.sqrt()
+
                                 ut.plot_highd_traj(model, i, full_true_traj, 
-                                    pred_traj, std_pred=var.sqrt())
+                                    pred_traj, std_pred=std_pred)
                             else:
                                 # resample a few forward passes
                                 ut.plot_highd_traj_BBB(model, i, full_true_traj, 

@@ -68,6 +68,7 @@ class BBBTimeSeriesPredModel(nn.Module):
                 # output the final step var, assuming linear increasing var
                 self.decoder = BBBLinear(self.hidden_feat_dim, 
                     self.pred_feat_dim + 1, BBB=self.BBB, *args, **kwargs)
+
         elif self.likelihood_cost_form == 'mse':
             self.decoder = BBBLinear(self.hidden_feat_dim, self.pred_feat_dim, 
                                  BBB=self.BBB, *args, **kwargs)
@@ -113,7 +114,7 @@ class BBBTimeSeriesPredModel(nn.Module):
             gradients = torch.autograd.grad(
                 outputs=NLL, 
                 inputs=self.rnn.sampled_weights, 
-                grad_outputs=torch.ones(NLL.size(), device=self.device), 
+                grad_outputs=torch.ones_like(NLL, device=self.device), 
                 create_graph=True, 
                 retain_graph=True, 
                 only_inputs=True)

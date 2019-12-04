@@ -140,6 +140,20 @@ def save_model_by_name(model, global_step, only_latest=False):
     torch.save(state, file_path)
     print('Saved to {}'.format(file_path))
 
+def load_final_model_by_name(model):
+    """
+    Load a model based on its name model.name and the checkpoint iteration step
+
+    Args:
+        model: Model: (): A model
+        global_step: int: (): Checkpoint iteration
+    """
+    file_path = os.path.join('checkpoints',
+                             model.name,
+                             'model_final.pt')
+    state = torch.load(file_path, map_location='cpu')
+    model.load_state_dict(state)
+    print("Loaded from {}".format(file_path))
 
 def prepare_dirs(model_name, overwrite_existing=False):
     save_dir = os.path.join('checkpoints', model_name)
@@ -171,12 +185,6 @@ def plot_history(model, data, iter, obj):
     plt.savefig('./logs/{}/{}.png'.format(model.name, obj))
     plt.close()
 
-def evaluate_model(model, val_set):
-    # Option 1: sample the weights of the model multiple times,
-    # and get the mean of the ouput for each evaluation data point
-    # Option 2: do one forward pass using the mean of the weights
-    # return some_metrics
-    pass
 
 def plot_highd_traj_BBB(model, iter, full_true_traj, n_resample_weights=10):
     with torch.no_grad():
@@ -190,8 +198,12 @@ def plot_highd_traj_BBB(model, iter, full_true_traj, n_resample_weights=10):
             else:
                 pred = pred.unsqueeze(-1)
                 pred_list = torch.cat((pred_list, pred), dim=-1)
-        mean_pred = pred_list.mean(dim=-1)
-        std_pred = pred_list.std(dim=-1)
+        if model.constant_var:
+            mean_pred = pred_list.mean(dim=-1)
+            std_pred = pred_list.std(dim=-1)
+        else:
+            mean_pred = pred_list[:, :, :-1, :].mean(dim=-1)
+            std_pred = pred_list[:, :, :-1, :].std(dim=-1)
 
     plot_highd_traj(model, iter, full_true_traj, mean_pred, std_pred=std_pred)
 
