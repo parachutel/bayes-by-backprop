@@ -128,18 +128,18 @@ if args.cell == 'LSTM':
             name=model_name,
             device=device).to(device)
     
-elif args.cell == 'FF'
+elif args.cell == 'FF':
     model = BBBTimeSeriesPredModel_FF(
             num_hidden_layers=args.nlayers,
-            #pi=args.pi,
-            #std1=std1,
-            #std2=std2,
+            pi=args.pi,
+            std1=std1,
+            std2=std2,
             gpu=gpu,
             BBB=args.BBB,
             training=args.training,
             sharpen=args.sharpen,
             dropout=args.dropout,
-            #likelihood_cost_form=args.likelihood_cost_form,
+            likelihood_cost_form=args.likelihood_cost_form,
             input_feat_dim=args.input_feat_dim,
             pred_feat_dim=args.pred_feat_dim,
             hidden_feat_dim=args.hidden_feat_dim,

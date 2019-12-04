@@ -43,7 +43,7 @@ def gaussian_parameters(h, dim=-1):
     assert m.shape == v.shape
     return m, v
 
-def gaussian_parameters_ff(h, dim=1):
+def gaussian_parameters_ff(h, dim=0):
     """
     Converts generic real-valued representations into mean and variance
     parameters of a Gaussian distribution
@@ -54,9 +54,9 @@ def gaussian_parameters_ff(h, dim=1):
     v = F.softplus(h) + 1e-8
     # Construct linearly increasing var through seq_len
     _scale = torch.tensor(np.linspace(1 / m.shape[0], 1, m.shape[0]), 
-                            dtype=m.dtype, device=m.device)
-    #FIXME
-    v = (v.transpose(0, -1) * _scale).transpose(0, -1).repeat(1, 1, m.shape[-1])
+                            dtype=m.dtype, device=m.device).unsqueeze(1).unsqueeze(2)
+
+    v = v*_scale
     assert m.shape == v.shape
     return m, v
 

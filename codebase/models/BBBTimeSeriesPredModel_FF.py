@@ -13,39 +13,52 @@ class BBBTimeSeriesPredModel_FF(nn.Module):
         n_input_steps,
         n_pred_steps,
         device,
-        num_hidden_layers=2
+        num_hidden_layers=2,
+        dropout=0,
         BBB=True,
         sharpen=False,
         training=True,
+        likelihood_cost_form='gaussian',
         constant_var=False,
+        task_mode='async-many-to-many',
         name='model',
         *args, **kwargs):
 
         super(BBBTimeSeriesPredModel_FF, self).__init__()
+        self.rnn_cell_type = 'FF' # for use in train function
+        self.name = name
         self.device = device
         self.constant_var = constant_var
         self.BBB = BBB
         self.sharpen = sharpen
+        self.training = training
+        self.likelihood_cost_form = likelihood_cost_form
 
         # input size = [batch_size, input_size]
         # input_size = input_seq_len * input_feat_dim (50 * 4)
         # output_size = output_seq_len * output_feat_dim + var_dim (20 * 2 + 1)
+        self.input_feat_dim = input_feat_dim
+        self.pred_feat_dim = pred_feat_dim
+        self.hidden_feat_dim = hidden_feat_dim
+        self.n_input_steps = n_input_steps
+        self.n_pred_steps = n_pred_steps
         self.input_size = self.n_input_steps * self.input_feat_dim
         self.output_size = self.n_pred_steps * self.pred_feat_dim
+        
         if not self.constant_var:
             self.output_size += self.pred_feat_dim
         else:
             self.pred_var = 0.001 # auxiliary parameter for evaluating prediction prob
 
         # Feedforward architecture
-        self.layers = [nn.BBBLinear(self.input_size, hidden_feat_dim, BBB=self.BBB, *args, **kwargs)]
+        self.layers = [BBBLinear(self.input_size, hidden_feat_dim, BBB=self.BBB, *args, **kwargs)]
         
         for i in range(num_hidden_layers):
             self.layers.append(nn.ELU())
             next_feat_dim = hidden_feat_dim
             if i+1 == num_hidden_layers:
                 next_feat_dim = self.output_size
-            self.layers.append(nn.BBBLinear(hidden_feat_dim, next_feat_dim, BBB=self.BBB, *args, **kwargs))
+            self.layers.append(BBBLinear(hidden_feat_dim, next_feat_dim, BBB=self.BBB, *args, **kwargs))
             
         self.net = nn.Sequential(*self.layers)
     
@@ -54,7 +67,7 @@ class BBBTimeSeriesPredModel_FF(nn.Module):
         # input (input_seq_len, batch_size, input_feat_dim)
         # reshape: input (batch_size, input_seq_len * input_feat_dim)
         input_seq_len, batch_size, input_feat_dim = inputs.shape
-        inputs_reshape = inputs.transpose(0,1).view(batch_size,-1)
+        inputs_reshape = inputs.transpose(0,1).reshape(batch_size,-1)
         
         # output = forward(input)
         outputs = self.net(inputs_reshape)
@@ -62,14 +75,14 @@ class BBBTimeSeriesPredModel_FF(nn.Module):
         # output (batch_size, output_seq_len * output_feat_dim)
         # reshape: output (output_seq_len, batch_size, output_feat_dim)        
         # compute nll and loss with reshaped output
-        return outputs.view(batch_size,-1,self.pred_feat_dim).transpose(0,1)
+        return outputs.reshape(batch_size,-1,self.pred_feat_dim).transpose(0,1)
 
     def get_nll(self, outputs, targets):
         """
         :return: negative log-likelihood of a minibatch
         """
         if not self.constant_var:
-            mean, var = ut.gaussian_parameters_ff(outputs, dim=1)
+            mean, var = ut.gaussian_parameters_ff(outputs, dim=0)
             return -torch.mean(ut.log_normal(targets, mean, var))
         else:
             var = self.pred_var * torch.ones_like(outputs)

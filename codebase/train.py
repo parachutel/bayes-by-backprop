@@ -71,7 +71,11 @@ def train(model, train_data, batch_size, n_batches,
                     if model.constant_var:
                         mse_val = mse(outputs, targets) * model.n_pred_steps
                     else:
-                        mean, var = ut.gaussian_parameters(outputs, dim=-1)
+                        if model.rnn_cell_type == 'FF':
+                            mean, var = ut.gaussian_parameters_ff(outputs, dim=0)
+
+                        else:
+                            mean, var = ut.gaussian_parameters(outputs, dim=-1)
                         mse_val = mse(mean, targets) * model.n_pred_steps
 
                 elif model.likelihood_cost_form == 'mse':
