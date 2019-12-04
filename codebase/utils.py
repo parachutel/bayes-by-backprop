@@ -43,6 +43,23 @@ def gaussian_parameters(h, dim=-1):
     assert m.shape == v.shape
     return m, v
 
+def gaussian_parameters_ff(h, dim=1):
+    """
+    Converts generic real-valued representations into mean and variance
+    parameters of a Gaussian distribution
+    """
+    # m.shape = (full_seq_len, n_sequences, feat_dim)
+    m, h = torch.split(h, h.size(dim) - 1, dim=dim)
+    assert h.shape[dim] == 1 # using single var for each feature
+    v = F.softplus(h) + 1e-8
+    # Construct linearly increasing var through seq_len
+    _scale = torch.tensor(np.linspace(1 / m.shape[0], 1, m.shape[0]), 
+                            dtype=m.dtype, device=m.device)
+    #FIXME
+    v = (v.transpose(0, -1) * _scale).transpose(0, -1).repeat(1, 1, m.shape[-1])
+    assert m.shape == v.shape
+    return m, v
+
 def log_normal(x, m, v):
     """
     Computes the elem-wise log probability of a Gaussian and then sum over the

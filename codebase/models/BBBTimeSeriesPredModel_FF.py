@@ -1,7 +1,6 @@
 import torch.nn as nn
 import codebase.utils as ut
 from codebase.models.nns.BBBLinear import BBBLinear
-from codebase.models.nns.BBBRNN import BBBRNN
 from torch.autograd import Variable
 import torch
 
@@ -10,9 +9,11 @@ class BBBTimeSeriesPredModel_FF(nn.Module):
     def __init__(self, 
         input_feat_dim,
         pred_feat_dim,
+        hidden_feat_dim,
         n_input_steps,
         n_pred_steps,
         device,
+        num_hidden_layers=2
         BBB=True,
         sharpen=False,
         training=True,
@@ -32,32 +33,43 @@ class BBBTimeSeriesPredModel_FF(nn.Module):
         self.input_size = self.n_input_steps * self.input_feat_dim
         self.output_size = self.n_pred_steps * self.pred_feat_dim
         if not self.constant_var:
-            self.output_size += 1
+            self.output_size += self.pred_feat_dim
         else:
             self.pred_var = 0.001 # auxiliary parameter for evaluating prediction prob
 
         # Feedforward architecture
-        l0 = nn.BBBLinear(self.input_size, 500, BBB=self.BBB, *args, **kwargs)
-        l1 = nn.BBBLinear(500, 500, BBB=self.BBB, *args, **kwargs)
-        l2 = nn.BBBLinear(500, self.output_size, BBB=self.BBB, *args, **kwargs)
-
-        self.layers = [l0, l1, l2]
-        self.net = nn.Sequential(l0, nn.ELU(), l1, nn.ELU(), l2)
-
+        self.layers = [nn.BBBLinear(self.input_size, hidden_feat_dim, BBB=self.BBB, *args, **kwargs)]
+        
+        for i in range(num_hidden_layers):
+            self.layers.append(nn.ELU())
+            next_feat_dim = hidden_feat_dim
+            if i+1 == num_hidden_layers:
+                next_feat_dim = self.output_size
+            self.layers.append(nn.BBBLinear(hidden_feat_dim, next_feat_dim, BBB=self.BBB, *args, **kwargs))
+            
+        self.net = nn.Sequential(*self.layers)
+    
+    def forward(self, inputs, targets=None):
         # work flow:
         # input (input_seq_len, batch_size, input_feat_dim)
         # reshape: input (batch_size, input_seq_len * input_feat_dim)
+        input_seq_len, batch_size, input_feat_dim = inputs.shape
+        inputs_reshape = inputs.transpose(0,1).view(batch_size,-1)
+        
         # output = forward(input)
+        outputs = self.net(inputs_reshape)
+        
         # output (batch_size, output_seq_len * output_feat_dim)
-        # reshape: output (output_seq_len, batch_size, output_feat_dim)
+        # reshape: output (output_seq_len, batch_size, output_feat_dim)        
         # compute nll and loss with reshaped output
+        return outputs.view(batch_size,-1,self.pred_feat_dim).transpose(0,1)
 
     def get_nll(self, outputs, targets):
         """
         :return: negative log-likelihood of a minibatch
         """
         if not self.constant_var:
-            mean, var = ut.gaussian_parameters(outputs, dim=-1)
+            mean, var = ut.gaussian_parameters_ff(outputs, dim=1)
             return -torch.mean(ut.log_normal(targets, mean, var))
         else:
             var = self.pred_var * torch.ones_like(outputs)
@@ -84,7 +96,8 @@ class BBBTimeSeriesPredModel_FF(nn.Module):
             KL = 0.
 
         if self.sharpen:
-            KL_sharp = self.rnn.get_kl_sharpening()
+            raise Exception('sharpening not implemented for feed forward')
+            #KL_sharp = self.rnn.get_kl_sharpening()
         else:
             KL_sharp = 0.
 
