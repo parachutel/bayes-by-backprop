@@ -5,7 +5,7 @@ import argparse
 import numpy as np
 import random
 from codebase.models.BBBTimeSeriesPredModel import BBBTimeSeriesPredModel
-
+from codebase.models.BBBTimeSeriesPredModel_FF import BBBTimeSeriesPredModel_FF
 from codebase.train import train
 import codebase.utils as ut
 import data.data_utils as data_ut
@@ -150,6 +150,7 @@ parser.add_argument('--logstd2', type=int, default=-6)
 # Train
 parser.add_argument('--clip_grad', type=int, default=5)
 parser.add_argument('--run', type=int, default=1)
+parser.add_argument('--training', action='store_true', default=False)
 
 args = parser.parse_args()
 
@@ -248,10 +249,11 @@ training_set = data_ut.read_highd_data(
 
 # pick arbitrary test with 10% of trajectories
 np.random.seed(0)
-n_traj = len(training_set)
+n_batches = len(training_set)
 split = 0.1
-ind = np.random.choice(range(n_traj), size=(int(n_traj * split),), replace=False)
-test_set = training_set[:,ind,:]
+ind = np.random.choice(range(n_batches), size=(int(n_batches * split),), replace=False)
+test_set_list = [training_set[i] for i in ind]
+test_set = torch.cat(test_set_list,dim=1)
 
 # calculate metrics and return results
 rwse = rwse(model, test_set, n_samples=100)
