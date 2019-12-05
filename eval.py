@@ -22,7 +22,7 @@ parser.add_argument('--hidden_feat_dim', type=int, default=100)
 # Model
 parser.add_argument('--cell', type=str, default='LSTM')
 parser.add_argument('--constant_var', type=int, default=0)
-parser.add_argument('--BBB', type=int, default=0)
+parser.add_argument('--BBB', type=int, default=1)
 parser.add_argument('--sharpen', type=int, default=0)
 parser.add_argument('--likelihood_cost_form', type=str, default='gaussian')
 parser.add_argument('--nlayers', type=int, default=1)
@@ -32,7 +32,7 @@ parser.add_argument('--logstd1', type=int, default=-1)
 parser.add_argument('--logstd2', type=int, default=-6)
 # Train
 parser.add_argument('--clip_grad', type=int, default=5)
-parser.add_argument('--run', type=int, default=1)
+parser.add_argument('--run', type=int, default=0)
 
 args = parser.parse_args()
 
@@ -103,12 +103,12 @@ ut.load_final_model_by_name(model)
 model.eval()
 
 
-def rwse(model, full_true_trajs, n_samples=100):
+def get_rwse(model, full_true_trajs, n_samples=100):
     """ root-weighted square error (RWSE) captures 
         the deviation of a model’s probability
         mass from real-world trajectories
     """
-    n_true_seqs = full_true_trajs.shape[1]
+    n_seqs = full_true_trajs.shape[1]
     inputs = full_true_trajs[:model.n_input_steps, :, :].detach()
     targets = full_true_trajs[model.n_input_steps:, :, :2].detach()
 
@@ -116,9 +116,10 @@ def rwse(model, full_true_trajs, n_samples=100):
         for i in range(n_samples):
             # not using sharpening
             pred = model.forward(inputs)
+            pred = pred.detach()
             if not model.constant_var:
                 pred = pred[:, :, :-1]
-            mean_sq_err = ((targets - pred) ** 2).sum() / n_true_seqs
+            mean_sq_err = ((targets - pred) ** 2).sum() / n_seqs
 
             if i == 0:
                 mean_sq_err_list = mean_sq_err.unsqueeze(-1)
@@ -128,6 +129,7 @@ def rwse(model, full_true_trajs, n_samples=100):
 
     else:
         pred = model.forward(inputs)
+        pred = pred.detach()
         if not model.constant_var:
             mean, var = ut.gaussian_parameters(pred, dim=-1)
         else:
@@ -136,7 +138,7 @@ def rwse(model, full_true_trajs, n_samples=100):
 
         for i in range(n_samples):
             sample_trajs = ut.sample_gaussian(mean, var)
-            mean_sq_err = ((targets - sample_trajs) ** 2).sum() / n_true_seqs
+            mean_sq_err = ((targets - sample_trajs) ** 2).sum() / n_seqs
 
             if i == 0:
                 mean_sq_err_list = mean_sq_err.unsqueeze(-1)
@@ -145,25 +147,91 @@ def rwse(model, full_true_trajs, n_samples=100):
                 mean_sq_err_list = torch.cat((mean_sq_err_list, mean_sq_err), dim=-1)
 
     mean_rwse = mean_sq_err_list.mean().sqrt()
-    std_rwse = mean_sq_err_list.mean().sqrt()
-    
-    ste = std_rwse / np.sqrt(n_true_seqs)
-    return mean_rwse, ste
 
+    return mean_rwse
 
-training_set = data_ut.read_highd_data(
-    'highd_processed_tracks01-60_fr05_loc123456_p0.30', 
-    args.batch_size, device)
-n_batches = len(training_set)
+def get_mse(model, full_true_trajs, n_samples=100):
+    """ root-weighted square error (RWSE) captures 
+        the deviation of a model’s probability
+        mass from real-world trajectories
+    """
+    n_seqs = full_true_trajs.shape[1]
+    inputs = full_true_trajs[:model.n_input_steps, :, :].detach()
+    targets = full_true_trajs[model.n_input_steps:, :, :2].detach()
 
-for i in range(30):
-    batch_id = random.sample(range(n_batches), 1)[0]
-    mean_rwse, _ = rwse(model, training_set[batch_id], n_samples=100)
-    if i == 0:
-        mean_rwse_list = mean_rwse.unsqueeze(-1)
+    if model.BBB:
+        for i in range(n_samples):
+            # not using sharpening
+            pred = model.forward(inputs) # one output sample
+            pred = pred.detach()
+            if i == 0:
+                pred_list = pred.unsqueeze(-1)
+            else:
+                pred = pred.unsqueeze(-1)
+                pred_list = torch.cat((pred_list, pred), dim=-1)
+
+        if model.constant_var:
+            mean_pred = pred_list.mean(dim=-1)
+            std_pred = pred_list.std(dim=-1)
+        else:
+            mean_pred = pred_list[:, :, :-1, :].mean(dim=-1)
+            std_pred = pred_list[:, :, :-1, :].std(dim=-1)
+
     else:
-        mean_rwse = mean_rwse.unsqueeze(-1)
-        mean_rwse_list = torch.cat((mean_rwse_list, mean_rwse), dim=-1)
-print(mean_rwse_list.detach().mean().numpy(), 
-        '+/-', mean_rwse_list.detach().std().numpy())
+        pred = model.forward(inputs)
+        pred = pred.detach()
+        if not model.constant_var:
+            mean, var = ut.gaussian_parameters(pred, dim=-1)
+        else:
+            mean = pred
+            var = model.pred_var
+
+        for i in range(n_samples):
+            sample_trajs = ut.sample_gaussian(mean, var)
+            sample_trajs = mean
+
+            if i == 0:
+                pred_list = sample_trajs.unsqueeze(-1)
+            else:
+                sample_trajs = sample_trajs.unsqueeze(-1)
+                pred_list = torch.cat((pred_list, sample_trajs), dim=-1)
+
+        if model.constant_var:
+            mean_pred = pred_list.mean(dim=-1)
+            std_pred = pred_list.std(dim=-1)
+        else:
+            mean_pred = pred_list[:, :, :-1, :].mean(dim=-1)
+            std_pred = pred_list[:, :, :-1, :].std(dim=-1)
+
+    mse = ((mean_pred - targets) ** 2).sum() / n_seqs
+
+    return mse
+
+
+
+
+if __name__ == '__main__':
+
+    training_set = data_ut.read_highd_data(
+        'highd_processed_tracks01-60_fr05_loc123456_p0.30', 
+        args.batch_size, device)
+    n_batches = len(training_set)
+    
+    for i in range(30):
+        batch_id = random.sample(range(n_batches), 1)[0]
+        mean_rwse = get_rwse(model, training_set[batch_id], n_samples=100)
+        mse = get_mse(model, training_set[batch_id], n_samples=100)
+        if i == 0:
+            mse_list = mse.unsqueeze(-1)
+            mean_rwse_list = mean_rwse.unsqueeze(-1)
+        else:
+            mse = mse.unsqueeze(-1)
+            mse_list = torch.cat((mse_list, mse), dim=-1)
+            mean_rwse = mean_rwse.unsqueeze(-1)
+            mean_rwse_list = torch.cat((mean_rwse_list, mean_rwse), dim=-1)
+    
+    print('rwse', mean_rwse_list.detach().mean().numpy(), 
+            '+/-', mean_rwse_list.detach().std().numpy())
+    print('mse', mse_list.detach().mean().numpy(), 
+            '+/-', mse_list.detach().std().numpy())
 
