@@ -9,6 +9,7 @@ from codebase.models.BBBTimeSeriesPredModel_FF import BBBTimeSeriesPredModel_FF
 from codebase.train import train
 import codebase.utils as ut
 import data.data_utils as data_ut
+from tqdm import tqdm
 
 ### RWSE Functions
 
@@ -39,13 +40,13 @@ def rwse(model, full_true_trajs, n_samples=100):
     return rwse
 
 def wse_bbb_rnn(model, inputs, targets):
-    pred = model.forward(inputs)
+    pred = model.forward(inputs).detach()
     if not model.constant_var:
         pred = pred[:, :, :-1]
     return ((targets - pred) ** 2).sum(-1).sum(0)
 
 def wse_rnn(model, inputs, targets):
-    pred = model.forward(inputs)
+    pred = model.forward(inputs).detach()
     if not model.constant_var:
         mean, var = ut.gaussian_parameters(pred, dim=-1)
     else:
@@ -58,7 +59,7 @@ def wse_bbb_ff(model,inputs,targets):
     raise Exception('Yet to formulate bbb ff')
 
 def wse_ff(model, inputs, targets):
-    pred = model.forward(inputs)
+    pred = model.forward(inputs).detach()
     if not model.constant_var:
         mean, var = ut.gaussian_parameters_ff(pred, dim=0)
     else:
@@ -95,7 +96,7 @@ def rmse(model, full_true_trajs, n_samples=100):
 def mse_bbb_rnn(model, inputs, targets, n_samples): #FIXME
     sample_tensor = torch.zeros(*targets.shape,n_samples)
     for i in range(n_samples):
-        pred = model.forward(inputs)
+        pred = model.forward(inputs).detach()
         if not model.constant_var:
             pred = pred[:, :, :-1]
         sample_tensor[:,:,:,i] = pred
@@ -103,7 +104,7 @@ def mse_bbb_rnn(model, inputs, targets, n_samples): #FIXME
     return ((targets - mean_pred) ** 2).sum(-1).sum(0)
 
 def mse_rnn(model, inputs, targets, n_samples):
-    pred = model.forward(inputs)
+    pred = model.forward(inputs).detach()
     if not model.constant_var:
         mean, var = ut.gaussian_parameters(pred, dim=-1)
     else:
@@ -115,7 +116,7 @@ def mse_bbb_ff(model, inputs, targets, n_samples):
     raise Exception('Yet to formulate bbb ff')
 
 def mse_ff(model, inputs, targets, n_samples):
-    pred = model.forward(inputs)
+    pred = model.forward(inputs).detach()
     if not model.constant_var:
         mean, var = ut.gaussian_parameters_ff(pred, dim=0)
     else:
@@ -203,7 +204,7 @@ if args.cell == 'LSTM':
             std1=std1,
             std2=std2,
             gpu=gpu,
-            BBB=args.BBB,
+            BBB=bool(args.BBB),
             training=args.training,
             sharpen=args.sharpen,
             dropout=args.dropout,
@@ -213,7 +214,7 @@ if args.cell == 'LSTM':
             hidden_feat_dim=args.hidden_feat_dim,
             n_input_steps=args.n_input_steps,
             n_pred_steps=args.n_pred_steps,
-            constant_var=args.constant_var,
+            constant_var=bool(args.constant_var),
             rnn_cell_type=args.cell,
             name=model_name,
             device=device).to(device)
@@ -225,7 +226,7 @@ elif args.cell == 'FF':
             std1=std1,
             std2=std2,
             gpu=gpu,
-            BBB=args.BBB,
+            BBB=bool(args.BBB),
             training=args.training,
             sharpen=args.sharpen,
             dropout=args.dropout,
@@ -235,7 +236,7 @@ elif args.cell == 'FF':
             hidden_feat_dim=args.hidden_feat_dim,
             n_input_steps=args.n_input_steps,
             n_pred_steps=args.n_pred_steps,
-            constant_var=args.constant_var,
+            constant_var=bool(args.constant_var),
             name=model_name,
             device=device).to(device)
 
@@ -247,19 +248,19 @@ training_set = data_ut.read_highd_data(
     'highd_processed_tracks01-60_fr05_loc123456_p0.30', 
     args.batch_size, device)
 
-# pick arbitrary test with 10% of trajectories
+# pick arbitrary test with some of trajectories
 np.random.seed(0)
 n_batches = len(training_set)
-split = 0.1
+split = 0.05
 ind = np.random.choice(range(n_batches), size=(int(n_batches * split),), replace=False)
 test_set_batches = [training_set[i] for i in ind]
 
 rwses = []
 rmses = []
-for test_set in test_set_batches:
+for test_set in tqdm(test_set_batches):
     # calculate metrics and return results
     rwses.append(rwse(model, test_set, n_samples=100).detach().item())
     rmses.append(rmse(model, test_set, n_samples=100).detach().item())
-print("RWSE: %f" %(np.array(rwses).mean()))
-print("RMSE: %f" %(np.array(rmses).mean()))
+print("RWSE: {:.3f} +/ {:.3f}".format(np.array(rwses).mean(), np.array(rwses).std()))
+print("RMSE: {:.3f} +/ {:.3f}".format(np.array(rmses).mean(), np.array(rmses).std()))
 
