@@ -56,7 +56,7 @@ def gaussian_parameters_ff(h, dim=0):
     _scale = torch.tensor(np.linspace(1 / m.shape[0], 1, m.shape[0]), 
                             dtype=m.dtype, device=m.device).unsqueeze(1).unsqueeze(2)
 
-    v = v*_scale
+    v = v * _scale
     assert m.shape == v.shape
     return m, v
 

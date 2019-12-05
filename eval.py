@@ -144,8 +144,8 @@ def rwse(model, full_true_trajs, n_samples=100):
                 mean_sq_err = mean_sq_err.unsqueeze(-1)
                 mean_sq_err_list = torch.cat((mean_sq_err_list, mean_sq_err), dim=-1)
 
-    mean_rwse = mean_sq_err_list.sqrt().mean()
-    std_rwse = mean_sq_err_list.sqrt().std()
+    mean_rwse = mean_sq_err_list.mean().sqrt()
+    std_rwse = mean_sq_err_list.mean().sqrt()
     
     ste = std_rwse / np.sqrt(n_true_seqs)
     return mean_rwse, ste

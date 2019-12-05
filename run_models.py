@@ -146,7 +146,6 @@ elif args.cell == 'FF':
             n_input_steps=args.n_input_steps,
             n_pred_steps=args.n_pred_steps,
             constant_var=args.constant_var,
-            #rnn_cell_type=args.cell,
             name=model_name,
             device=device).to(device)
     

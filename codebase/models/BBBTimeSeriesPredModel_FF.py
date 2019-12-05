@@ -51,14 +51,16 @@ class BBBTimeSeriesPredModel_FF(nn.Module):
             self.pred_var = 0.001 # auxiliary parameter for evaluating prediction prob
 
         # Feedforward architecture
-        self.layers = [BBBLinear(self.input_size, hidden_feat_dim, BBB=self.BBB, *args, **kwargs)]
+        self.layers = \
+            [BBBLinear(self.input_size, hidden_feat_dim, BBB=self.BBB, *args, **kwargs)]
         
         for i in range(num_hidden_layers):
             self.layers.append(nn.ELU())
             next_feat_dim = hidden_feat_dim
             if i+1 == num_hidden_layers:
                 next_feat_dim = self.output_size
-            self.layers.append(BBBLinear(hidden_feat_dim, next_feat_dim, BBB=self.BBB, *args, **kwargs))
+            self.layers.append(
+                BBBLinear(hidden_feat_dim, next_feat_dim, BBB=self.BBB, *args, **kwargs))
             
         self.net = nn.Sequential(*self.layers)
     
@@ -115,3 +117,4 @@ class BBBTimeSeriesPredModel_FF(nn.Module):
             KL_sharp = 0.
 
         return NLL, KL, KL_sharp
+
