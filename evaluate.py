@@ -252,13 +252,14 @@ np.random.seed(0)
 n_batches = len(training_set)
 split = 0.1
 ind = np.random.choice(range(n_batches), size=(int(n_batches * split),), replace=False)
-test_set_list = [training_set[i] for i in ind]
-test_set = torch.cat(test_set_list,dim=1)
+test_set_batches = [training_set[i] for i in ind]
 
-# calculate metrics and return results
-rwse = rwse(model, test_set, n_samples=100)
-rmse = rmse(model, test_set, n_samples=100)
-
-print("RWSE: %f" %(rwse.detach().item()))
-print("RMSE: %f" %(rmse.detach().item()))
+rwses = []
+rmses = []
+for test_set in test_set_batches:
+    # calculate metrics and return results
+    rwses.append(rwse(model, test_set, n_samples=100).detach().item())
+    rmses.append(rmse(model, test_set, n_samples=100).detach().item())
+print("RWSE: %f" %(np.array(rwses).mean()))
+print("RMSE: %f" %(np.array(rmses).mean()))
 
