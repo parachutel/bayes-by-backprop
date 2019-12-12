@@ -58,7 +58,8 @@ class BBBLayer(nn.Module):
         kl = 0
         for i in range(len(self.sampled_weights)):
             sharp_w = self.sampled_sharpen_weights[i]
-            w = self.sampled_weights[i]
+            # w = self.sampled_weights[i]
+            w = self.sampled_weights[i].detach()
             # without constant term
             kl += torch.sum((sharp_w - w).pow(2) / (2 * sigma**2))
 
